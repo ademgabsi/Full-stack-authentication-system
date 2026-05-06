@@ -11,7 +11,7 @@ A full-stack authentication system with multi-factor authentication, role-based 
 - Account lockout after failed login attempts
 - Role-based access control (user / admin)
 - Profile image upload via Cloudinary
-- Rate limiting on sensitive endpoints
+- Redis-backed distributed rate limiting on all endpoints via @nestjs/throttler
 - Swagger API documentation (dev only)
 - Audit logging of all security-relevant actions (login, MFA, password changes, admin actions)
 - Cloudflare Turnstile CAPTCHA on registration and login forms
@@ -24,7 +24,7 @@ A full-stack authentication system with multi-factor authentication, role-based 
 
 | Layer | Technologies |
 | --- | --- |
-| Backend | NestJS, TypeORM, PostgreSQL, Passport, JWT, Nodemailer, Cloudinary, Cloudflare Turnstile, Google OAuth, SimpleWebAuthn |
+| Backend | NestJS, TypeORM, PostgreSQL, Redis, Passport, JWT, Nodemailer, Cloudinary, Cloudflare Turnstile, Google OAuth, SimpleWebAuthn |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, Zustand, React Query, React Hook Form + Zod |
 
 ## Project Structure
@@ -33,7 +33,7 @@ A full-stack authentication system with multi-factor authentication, role-based 
 auth-system/
 ├── backend/          # NestJS API
 │   ├── src/
-│   │   ├── common/   # Guards, decorators, filters, interceptors, validators
+│   │   ├── common/   # Guards, decorators, filters, interceptors, validators, storage
 │   │   ├── config/   # App configuration service
 │   │   ├── entities/ # TypeORM entities
 │   │   ├── modules/  # Feature modules (auth, users, admin, email, cloudinary, audit, captcha)
@@ -58,6 +58,7 @@ auth-system/
 
 - Node.js >= 18
 - PostgreSQL database
+- Redis server (optional — app falls back to in-memory rate limiting if unavailable; run via `docker run -d --name redis -p 6379:6379 redis:alpine`)
 - SMTP server (e.g. Gmail with App Password)
 - Cloudinary account (for image uploads)
 - Cloudflare account (for Turnstile CAPTCHA — optional, skipped if no secret key is set)
@@ -95,6 +96,35 @@ npm run seed:admin
 See [backend/.env.example](backend/.env.example) and [frontend/.env.example](frontend/.env.example) for all required variables.
 
 ## Security
+
+### Rate Limiting
+
+All endpoints are rate-limited using `@nestjs/throttler` backed by Redis, ensuring limits persist across server restarts and are shared across multiple instances. If Redis is unavailable, the app automatically falls back to in-memory rate limiting and reconnects when Redis comes back up.
+
+| Profile | Window | Max Requests | Scope |
+| --- | --- | --- | --- |
+| `short` | 1 second | 3 | Global default |
+| `medium` | 10 seconds | 20 | Global default |
+| `long` | 60 seconds | 100 | Global default |
+
+Sensitive auth endpoints override these defaults with stricter limits:
+
+| Endpoint | Window | Max Requests |
+| --- | --- | --- |
+| `POST /auth/register` | 60s | 5 |
+| `POST /auth/login` | 60s | 10 |
+| `POST /auth/forgot-password` | 60s | 3 |
+| `POST /auth/reset-password` | 60s | 5 |
+| `POST /auth/verify-email` | 60s | 5 |
+| `POST /auth/resend-verification` | 60s | 3 |
+| `POST /auth/mfa/verify` | 60s | 10 |
+| `POST /auth/mfa/verify-backup` | 60s | 10 |
+| `POST /auth/webauthn/login/*` | 60s | 10 |
+
+- **Redis storage**: Uses an atomic Lua script for increment + TTL in a single round-trip (no race conditions)
+- **Automatic fallback**: If Redis is down, falls back to in-memory storage seamlessly; reconnects when Redis recovers
+- **Global guard**: `ThrottlerGuard` is registered globally — all endpoints are protected by default
+- **Opt-out**: Use `@SkipThrottle()` to exempt specific endpoints (e.g., health checks)
 
 ### HTTP-Only Cookies
 

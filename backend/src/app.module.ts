@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import Redis from 'ioredis';
 import { AppConfigModule } from './config/config.module';
 import { AppConfigService } from './config/app-config.service';
 import { AuthModule } from './modules/auth/auth.module';
@@ -12,6 +14,7 @@ import { BreachPasswordModule } from './modules/auth/breach-password.module';
 import { WebAuthnModule } from './modules/auth/webauthn.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { RedisThrottlerStorage } from './common/storage/redis-throttler.storage';
 
 function getSslConfig(sslEnabled: boolean) {
   if (!sslEnabled) return false;
@@ -46,23 +49,32 @@ function getSslConfig(sslEnabled: boolean) {
         autoLoadEntities: true,
       }),
     }),
-    ThrottlerModule.forRoot([
-      {
-        name: 'short',
-        ttl: 1000,
-        limit: 3,
+    ThrottlerModule.forRootAsync({
+      imports: [AppConfigModule],
+      inject: [AppConfigService],
+      useFactory: (configService: AppConfigService) => {
+        const redis = new Redis({
+          host: configService.redisHost,
+          port: configService.redisPort,
+          password: configService.redisPassword,
+          maxRetriesPerRequest: null,
+          enableReadyCheck: true,
+          retryStrategy: (times) => Math.min(times * 200, 5000),
+          lazyConnect: true,
+        });
+
+        redis.on('error', () => {});
+
+        return {
+          throttlers: [
+            { name: 'short', ttl: 1000, limit: 3 },
+            { name: 'medium', ttl: 10000, limit: 20 },
+            { name: 'long', ttl: 60000, limit: 100 },
+          ],
+          storage: new RedisThrottlerStorage(redis),
+        };
       },
-      {
-        name: 'medium',
-        ttl: 10000,
-        limit: 20,
-      },
-      {
-        name: 'long',
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
+    }),
     AuditModule,
     CaptchaModule,
     BreachPasswordModule,
@@ -72,6 +84,9 @@ function getSslConfig(sslEnabled: boolean) {
     AdminModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

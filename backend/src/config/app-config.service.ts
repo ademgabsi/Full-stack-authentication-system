@@ -84,4 +84,16 @@ export class AppConfigService {
   get webauthnOrigin(): string {
     return this.configService.get<string>('app.webauthn.origin') ?? 'http://localhost:5173';
   }
+
+  get redisHost(): string {
+    return this.configService.get<string>('app.redis.host') ?? '127.0.0.1';
+  }
+
+  get redisPort(): number {
+    return this.configService.get<number>('app.redis.port') ?? 6379;
+  }
+
+  get redisPassword(): string | undefined {
+    return this.configService.get<string>('app.redis.password') || undefined;
+  }
 }
