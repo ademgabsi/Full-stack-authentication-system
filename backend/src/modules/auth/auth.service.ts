@@ -25,7 +25,6 @@ import {
   MfaVerifyDto,
   MfaEnableDto,
   MfaDisableDto,
-  RefreshTokenDto,
   ForgotPasswordDto,
   ResetPasswordDto,
   ResendVerificationDto,
@@ -436,8 +435,8 @@ export class AuthService {
     };
   }
 
-  async refreshTokens(dto: RefreshTokenDto) {
-    const tokenHash = this.hashToken(dto.refreshToken);
+  async refreshTokens(refreshToken: string) {
+    const tokenHash = this.hashToken(refreshToken);
     const refreshTokenEntity = await this.refreshTokenRepository.findOne({
       where: { token: tokenHash },
       relations: ['user'],
@@ -562,8 +561,8 @@ export class AuthService {
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.jwtSecret,
       expiresIn: this.configService.jwtExpiration as any,
-      issuer: 'codeitup-api',
-      audience: 'codeitup-app',
+      issuer: 'authsystem-api',
+      audience: 'authsystem-app',
     });
 
     const refreshToken = randomUUID();

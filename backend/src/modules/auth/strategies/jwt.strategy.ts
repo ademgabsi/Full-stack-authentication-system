@@ -10,8 +10,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.jwtSecret,
-      issuer: 'codeitup-api',
-      audience: 'codeitup-app',
+      issuer: 'authsystem-api',
+      audience: 'authsystem-app',
     });
   }
 

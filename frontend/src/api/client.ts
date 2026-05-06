@@ -1,6 +1,5 @@
 import axios from 'axios';
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import type { RefreshTokenRequest } from '@/types';
 import { useAuthStore } from '@/stores/auth.store';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -11,6 +10,7 @@ const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 apiClient.interceptors.request.use(
@@ -74,23 +74,16 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const { refreshToken, logout, setTokens } = useAuthStore.getState();
-      if (!refreshToken) {
-        isRefreshing = false;
-        logout();
-        redirectToLogin();
-        return Promise.reject(error);
-      }
+      const { logout, setAccessToken } = useAuthStore.getState();
 
       try {
-        const response = await axios.post(
-          `${API_BASE_URL}/api/auth/refresh`,
-          { refreshToken } satisfies RefreshTokenRequest,
-        );
+        const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {}, {
+          withCredentials: true,
+        });
         const data = response.data?.data ?? response.data;
-        const { accessToken, refreshToken: newRefreshToken } = data;
+        const { accessToken } = data;
 
-        setTokens(accessToken, newRefreshToken);
+        setAccessToken(accessToken);
 
         processQueue(null, accessToken);
 

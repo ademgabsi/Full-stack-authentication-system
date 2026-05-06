@@ -26,15 +26,14 @@ function getRoleFromToken(token: string | null): UserRole | null {
 
 interface AuthState {
   accessToken: string | null;
-  refreshToken: string | null;
   user: AuthUser | null;
   tempToken: string | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  setTokens: (accessToken: string, refreshToken: string) => void;
+  setAccessToken: (accessToken: string) => void;
   setUser: (user: AuthUser) => void;
   setTempToken: (tempToken: string | null) => void;
-  login: (accessToken: string, refreshToken: string, user: AuthUser) => void;
+  login: (accessToken: string, user: AuthUser) => void;
   logout: () => void;
 }
 
@@ -42,16 +41,14 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       accessToken: null,
-      refreshToken: null,
       user: null,
       tempToken: null,
       isAuthenticated: false,
       isAdmin: false,
 
-      setTokens: (accessToken, refreshToken) => {
+      setAccessToken: (accessToken) => {
         set({
           accessToken,
-          refreshToken,
           isAuthenticated: true,
           isAdmin: getRoleFromToken(accessToken) === 'admin',
         });
@@ -65,10 +62,9 @@ export const useAuthStore = create<AuthState>()(
         set({ tempToken });
       },
 
-      login: (accessToken, refreshToken, user) => {
+      login: (accessToken, user) => {
         set({
           accessToken,
-          refreshToken,
           user,
           tempToken: null,
           isAuthenticated: true,
@@ -79,7 +75,6 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         set({
           accessToken: null,
-          refreshToken: null,
           user: null,
           tempToken: null,
           isAuthenticated: false,
@@ -90,8 +85,6 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         isAdmin: state.isAdmin,

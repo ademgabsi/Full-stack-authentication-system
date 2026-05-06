@@ -13,6 +13,7 @@ if (!globalThis.crypto) {
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -20,6 +21,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.use(cookieParser());
   app.setGlobalPrefix('api');
 
   const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
@@ -53,9 +55,9 @@ async function bootstrap() {
 
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Auth System API')
+      .setTitle('AuthSystem API')
       .setDescription(
-        'Authentication System with Multi-Factor Authentication (MFA) API Documentation',
+        'AuthSystem API - Authentication with MFA Documentation',
       )
       .setVersion('1.0')
       .addBearerAuth()

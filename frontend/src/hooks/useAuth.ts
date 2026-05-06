@@ -36,8 +36,8 @@ export function useVerifyMfa() {
     mutationFn: (data: Omit<MfaVerifyRequest, 'tempToken'>) =>
       authApi.verifyMfa({ ...data, tempToken: tempToken! }),
     onSuccess: (response) => {
-      const { accessToken, refreshToken, user } = response;
-      login(accessToken, refreshToken, user);
+      const { accessToken, user } = response;
+      login(accessToken, user);
       navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
     },
     onError: (error: AxiosError) => {
@@ -57,8 +57,8 @@ export function useVerifyMfaBackup() {
     mutationFn: (backupCode: string) =>
       authApi.verifyMfaBackupCode({ tempToken: tempToken!, backupCode }),
     onSuccess: (response) => {
-      const { accessToken, refreshToken, user } = response;
-      login(accessToken, refreshToken, user);
+      const { accessToken, user } = response;
+      login(accessToken, user);
       navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
     },
   });
@@ -120,12 +120,9 @@ export function useLogout() {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
   const doLogout = () => {
-    const refreshToken = localStorage.getItem('refreshToken');
     logout();
     navigate('/login', { replace: true });
-    if (refreshToken) {
-      authApi.logout(refreshToken).catch(() => {});
-    }
+    authApi.logout().catch(() => {});
   };
   return { logout: doLogout };
 }

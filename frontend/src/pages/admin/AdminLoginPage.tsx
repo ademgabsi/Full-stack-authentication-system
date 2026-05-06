@@ -43,7 +43,7 @@ export default function AdminLoginPage() {
           setAdminError('This account does not have admin privileges.');
           return;
         }
-        useAuthStore.getState().login(loginResp.accessToken, loginResp.refreshToken, loginResp.user);
+        useAuthStore.getState().login(loginResp.accessToken, loginResp.user);
         navigate('/admin', { replace: true });
       },
       onError: () => {

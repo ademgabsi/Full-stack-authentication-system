@@ -9,7 +9,7 @@ export function AuthLayout() {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2">
             <Shell className="h-8 w-8 text-primary-600" />
-            <span className="text-2xl font-bold text-gray-900">Hackathon</span>
+            <span className="text-2xl font-bold text-gray-900">AuthSystem</span>
           </Link>
         </div>
         <Outlet />

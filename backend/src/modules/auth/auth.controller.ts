@@ -2,18 +2,23 @@ import {
   Controller,
   Post,
   Body,
+  Req,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiCookieAuth,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
+import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import {
   RegisterDto,
@@ -21,7 +26,6 @@ import {
   MfaVerifyDto,
   MfaEnableDto,
   MfaDisableDto,
-  RefreshTokenDto,
   ForgotPasswordDto,
   ResetPasswordDto,
   ResendVerificationDto,
@@ -29,6 +33,14 @@ import {
   VerifyEmailDto,
 } from './dto';
 import { CurrentUser, Public } from '../../common/decorators';
+
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/api/auth',
+};
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -78,8 +90,14 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 403, description: 'Email not verified' })
   @ApiResponse({ status: 423, description: 'Account locked' })
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(dto);
+    if ('refreshToken' in result) {
+      res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+      const { refreshToken: _, ...body } = result;
+      return body;
+    }
+    return result;
   }
 
   @Public()
@@ -92,8 +110,11 @@ export class AuthController {
     description: 'Returns access and refresh tokens',
   })
   @ApiResponse({ status: 401, description: 'Invalid TOTP code or temp token' })
-  async verifyMfa(@Body() dto: MfaVerifyDto) {
-    return this.authService.verifyMfa(dto);
+  async verifyMfa(@Body() dto: MfaVerifyDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.verifyMfa(dto);
+    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    const { refreshToken: _, ...body } = result;
+    return body;
   }
 
   @Public()
@@ -105,8 +126,11 @@ export class AuthController {
     status: 200,
     description: 'Returns access and refresh tokens',
   })
-  async verifyMfaBackupCode(@Body() dto: MfaBackupCodeVerifyDto) {
-    return this.authService.verifyMfaBackupCode(dto);
+  async verifyMfaBackupCode(@Body() dto: MfaBackupCodeVerifyDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.verifyMfaBackupCode(dto);
+    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    const { refreshToken: _, ...body } = result;
+    return body;
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -158,24 +182,38 @@ export class AuthController {
     return this.authService.regenerateBackupCodes(userId);
   }
 
+  @ApiCookieAuth()
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
-  @ApiResponse({ status: 200, description: 'Returns new tokens' })
+  @ApiResponse({ status: 200, description: 'Returns new access token' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refreshTokens(@Body() dto: RefreshTokenDto) {
-    return this.authService.refreshTokens(dto);
+  async refreshTokens(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const token = req.cookies?.['refresh_token'];
+    if (!token) {
+      throw new HttpException('Missing refresh token', HttpStatus.UNAUTHORIZED);
+    }
+    const result = await this.authService.refreshTokens(token);
+    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    const { refreshToken: _, ...resp } = result;
+    return resp;
   }
 
+  @ApiCookieAuth()
   @UseGuards(AuthGuard('jwt'))
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout and revoke refresh token' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@Body() dto: RefreshTokenDto) {
-    return this.authService.logout(dto.refreshToken);
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const token = req.cookies?.['refresh_token'];
+    if (token) {
+      await this.authService.logout(token);
+    }
+    res.clearCookie('refresh_token', { path: '/api/auth' });
+    return { message: 'Logged out successfully' };
   }
 
   @Public()

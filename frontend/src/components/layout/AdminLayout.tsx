@@ -26,14 +26,11 @@ export function AdminLayout() {
   const [profileDropdown, setProfileDropdown] = useState(false);
 
   const handleLogout = () => {
-    const refreshToken = localStorage.getItem('refreshToken');
     logout();
     navigate('/admin/login');
-    if (refreshToken) {
-      import('@/api/auth.api').then(({ authApi }) =>
-        authApi.logout(refreshToken).catch(() => {}),
-      );
-    }
+    import('@/api/auth.api').then(({ authApi }) =>
+      authApi.logout().catch(() => {}),
+    );
   };
 
   const isActive = (path: string) => {

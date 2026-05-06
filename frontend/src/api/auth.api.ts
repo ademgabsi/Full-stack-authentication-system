@@ -11,7 +11,6 @@ import type {
   MfaDisableRequest,
   MfaSetupResponse,
   MfaEnableResponse,
-  RefreshTokenRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
   ResendVerificationRequest,
@@ -50,11 +49,11 @@ export const authApi = {
   regenerateBackupCodes: () =>
     apiClient.post<MfaEnableResponse>('/auth/mfa/backup-codes').then((r) => r.data),
 
-  refreshToken: (data: RefreshTokenRequest) =>
-    apiClient.post<LoginResponse>('/auth/refresh', data).then((r) => r.data),
+  refreshToken: () =>
+    apiClient.post<LoginResponse>('/auth/refresh').then((r) => r.data),
 
-  logout: (refreshToken: string) =>
-    apiClient.post<MessageResponse>('/auth/logout', { refreshToken }).then((r) => r.data),
+  logout: () =>
+    apiClient.post<MessageResponse>('/auth/logout').then((r) => r.data),
 
   forgotPassword: (data: ForgotPasswordRequest) =>
     apiClient.post<MessageResponse>('/auth/forgot-password', data).then((r) => r.data),

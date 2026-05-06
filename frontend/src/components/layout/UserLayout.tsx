@@ -11,14 +11,11 @@ export function UserLayout() {
   const [profileDropdown, setProfileDropdown] = useState(false);
 
   const handleLogout = () => {
-    const refreshToken = localStorage.getItem('refreshToken');
     logout();
     navigate('/login');
-    if (refreshToken) {
-      import('@/api/auth.api').then(({ authApi }) =>
-        authApi.logout(refreshToken).catch(() => {}),
-      );
-    }
+    import('@/api/auth.api').then(({ authApi }) =>
+      authApi.logout().catch(() => {}),
+    );
   };
 
   return (
@@ -29,9 +26,9 @@ export function UserLayout() {
           <div className="flex items-center justify-between h-16">
             <Link to="/dashboard" className="flex items-center gap-2">
               <div className="h-8 w-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm font-bold">H</span>
+                <span className="text-white text-sm font-bold">A</span>
               </div>
-              <span className="font-semibold text-gray-900">Hackathon</span>
+              <span className="font-semibold text-gray-900">AuthSystem</span>
             </Link>
 
             {/* Profile dropdown */}
