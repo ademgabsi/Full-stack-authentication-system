@@ -12,6 +12,7 @@ import { User, UserRole } from '../../entities/user.entity';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { AuditLogService } from '../audit/audit.service';
 import { UpdateProfileDto, ChangePasswordDto } from './dto';
+import { BreachPasswordService } from '../auth/breach-password.service';
 
 @Injectable()
 export class UsersService {
@@ -22,6 +23,7 @@ export class UsersService {
     private userRepository: Repository<User>,
     private cloudinaryService: CloudinaryService,
     private auditLogService: AuditLogService,
+    private breachService: BreachPasswordService,
   ) {}
 
   async findById(id: string): Promise<User> {
@@ -81,6 +83,13 @@ export class UsersService {
     );
     if (!isPasswordValid) {
       throw new BadRequestException('Current password is incorrect');
+    }
+
+    const breachCount = await this.breachService.isBreached(dto.newPassword);
+    if (breachCount > 0 && !dto.ignoreBreachWarning) {
+      throw new BadRequestException(
+        `This password has been found in ${breachCount.toLocaleString()} data breaches. Please choose a different password.`,
+      );
     }
 
     const newPasswordHash = await bcrypt.hash(dto.newPassword, 10);

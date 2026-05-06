@@ -23,6 +23,7 @@ import { EmailService } from '../email/email.service';
 import { MfaService } from './mfa.service';
 import { AuditLogService } from '../audit/audit.service';
 import { CaptchaService } from '../captcha/captcha.service';
+import { BreachPasswordService } from './breach-password.service';
 import {
   RegisterDto,
   LoginDto,
@@ -55,6 +56,7 @@ export class AuthService {
     private mfaService: MfaService,
     private auditLogService: AuditLogService,
     private captchaService: CaptchaService,
+    private breachService: BreachPasswordService,
   ) {}
 
   private generateCode(): string {
@@ -104,6 +106,13 @@ export class AuthService {
         message:
           'If this email is not already registered, a verification code has been sent.',
       };
+    }
+
+    const breachCount = await this.breachService.isBreached(dto.password);
+    if (breachCount > 0 && !dto.ignoreBreachWarning) {
+      throw new BadRequestException(
+        `This password has been found in ${breachCount.toLocaleString()} data breaches. Please choose a different password.`,
+      );
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -696,6 +705,13 @@ export class AuthService {
     if (isSamePassword) {
       throw new BadRequestException(
         'New password must be different from current password',
+      );
+    }
+
+    const breachCount = await this.breachService.isBreached(dto.password);
+    if (breachCount > 0 && !dto.ignoreBreachWarning) {
+      throw new BadRequestException(
+        `This password has been found in ${breachCount.toLocaleString()} data breaches. Please choose a different password.`,
       );
     }
 

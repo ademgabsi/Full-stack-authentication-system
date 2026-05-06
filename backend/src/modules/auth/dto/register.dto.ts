@@ -5,7 +5,9 @@ import {
   MinLength,
   MaxLength,
   IsOptional,
+  IsBoolean,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { IsStrongPassword } from '../../../common/validators/is-strong-password';
 
 export class RegisterDto {
@@ -30,4 +32,13 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   captchaToken?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Set to true to proceed despite the password being found in data breaches',
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  ignoreBreachWarning?: boolean;
 }

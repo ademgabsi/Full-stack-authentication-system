@@ -16,6 +16,7 @@ A full-stack authentication system with multi-factor authentication, role-based 
 - Audit logging of all security-relevant actions (login, MFA, password changes, admin actions)
 - Cloudflare Turnstile CAPTCHA on registration and login forms
 - Session management with device tracking (view, revoke individual or all sessions)
+- Have I Been Pwned (HIBP) breach password detection on registration, password change, and password reset
 
 ## Tech Stack
 
@@ -145,6 +146,16 @@ Cloudflare Turnstile is integrated on the registration and login forms. The fron
 - **Environment-conditional**: CAPTCHA is automatically skipped when `TURNSTILE_SECRET_KEY` is not set
 - **Reset on failure**: The widget resets automatically after a failed submission
 - **Configurable**: Set `CAPTCHA_ENABLED=false` to disable even with a secret key configured
+
+### Breach Password Detection (HIBP)
+
+All password-setting flows (registration, password change, password reset) check new passwords against the [Have I Been Pwned](https://haveibeenpwned.com/Passwords) database using the k-anonymity API:
+
+- Only the first 5 characters of the SHA-1 hash are sent to the HIBP API — the full password never leaves the server
+- If a password is found in known breaches, the request returns a `400` error with the breach count and a warning message
+- Users can bypass the warning by passing `ignoreBreachWarning: true` in the request body (for non-blocking UX flows)
+- API responses are cached in-memory with a 24-hour TTL to minimize external calls
+- If the HIBP API is unavailable, the check is silently skipped (fail-open) to avoid blocking legitimate signups
 
 ## API Documentation
 

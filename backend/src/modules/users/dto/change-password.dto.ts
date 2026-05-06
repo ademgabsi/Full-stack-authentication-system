@@ -1,5 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  MinLength,
+  MaxLength,
+  IsOptional,
+  IsBoolean,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
 import { IsStrongPassword } from '../../../common/validators/is-strong-password';
 
 export class ChangePasswordDto {
@@ -14,4 +21,13 @@ export class ChangePasswordDto {
   @MaxLength(128)
   @IsStrongPassword()
   newPassword: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Set to true to proceed despite the password being found in data breaches',
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  ignoreBreachWarning?: boolean;
 }
