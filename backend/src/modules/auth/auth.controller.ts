@@ -36,6 +36,7 @@ import {
   VerifyEmailDto,
 } from './dto';
 import { CurrentUser, Public } from '../../common/decorators';
+import { AppConfigService } from '../../config/app-config.service';
 
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -48,7 +49,38 @@ const REFRESH_COOKIE_OPTIONS = {
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private configService: AppConfigService,
+  ) {}
+
+  @Public()
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Initiate Google OAuth flow' })
+  googleAuth() {}
+
+  @Public()
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Handle Google OAuth callback' })
+  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
+    const result = await this.authService.googleOAuthLogin(
+      req.user as any,
+      req,
+    );
+    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    const frontendUrl = this.configService.url.match(/:\d+/)
+      ? this.configService.url.replace(/:\d+/, ':5173')
+      : this.configService.url;
+    const params = new URLSearchParams({
+      accessToken: result.accessToken,
+      user: JSON.stringify(result.user),
+    });
+    return res.redirect(
+      `${frontendUrl}/auth/google/callback?${params.toString()}`,
+    );
+  }
 
   @Public()
   @Post('register')

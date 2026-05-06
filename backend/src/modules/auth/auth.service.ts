@@ -24,6 +24,7 @@ import { MfaService } from './mfa.service';
 import { AuditLogService } from '../audit/audit.service';
 import { CaptchaService } from '../captcha/captcha.service';
 import { BreachPasswordService } from './breach-password.service';
+import { GoogleProfile } from './strategies/google.strategy';
 import {
   RegisterDto,
   LoginDto,
@@ -576,6 +577,77 @@ export class AuthService {
       message: 'Backup codes regenerated successfully',
       backupCodes,
     };
+  }
+
+  async googleOAuthLogin(googleProfile: GoogleProfile, req?: Request) {
+    const normalizedEmail = googleProfile.email.toLowerCase().trim();
+
+    let user = await this.userRepository.findOne({
+      where: { email: normalizedEmail },
+    });
+
+    if (user) {
+      if (
+        user.provider === 'google' &&
+        user.providerId !== googleProfile.providerId
+      ) {
+        throw new BadRequestException('Account conflict detected');
+      }
+
+      if (!user.isActive) {
+        throw new UnauthorizedException('Account is deactivated');
+      }
+      if (user.lockedUntil && user.lockedUntil > new Date()) {
+        throw new UnauthorizedException('Account is temporarily locked');
+      }
+
+      if (user.provider === 'credentials') {
+        await this.userRepository.update(user.id, {
+          provider: 'google',
+          providerId: googleProfile.providerId,
+          isVerified: true,
+        });
+        user.provider = 'google';
+        user.providerId = googleProfile.providerId;
+      }
+
+      await this.userRepository.update(user.id, {
+        failedAttempts: 0,
+        lockedUntil: null!,
+        lastLogin: new Date(),
+        ...(googleProfile.picture && !user.image
+          ? { image: googleProfile.picture }
+          : {}),
+      });
+      user = await this.userRepository.findOne({ where: { id: user.id } });
+    } else {
+      user = this.userRepository.create({
+        email: normalizedEmail,
+        passwordHash: null!,
+        fullName:
+          `${googleProfile.firstName} ${googleProfile.lastName}`.trim() ||
+          'Google User',
+        role: 'user' as any,
+        provider: 'google',
+        providerId: googleProfile.providerId,
+        isVerified: true,
+        image: googleProfile.picture || undefined,
+      });
+      await this.userRepository.save(user);
+
+      this.emailService
+        .sendWelcomeEmail(user.email, user.fullName)
+        .catch(() => {});
+    }
+
+    await this.auditLogService.log({
+      userId: user!.id,
+      action: 'auth.login.google',
+      resource: `user:${user!.id}`,
+      req,
+    });
+
+    return this.generateTokens(user!, req);
   }
 
   async refreshTokens(refreshToken: string, req?: Request) {

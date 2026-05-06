@@ -19,8 +19,19 @@ export class User {
   @Column({ type: 'varchar', unique: true, length: 255 })
   email: string;
 
-  @Column({ type: 'varchar', name: 'password_hash', length: 255 })
+  @Column({
+    type: 'varchar',
+    name: 'password_hash',
+    length: 255,
+    nullable: true,
+  })
   passwordHash: string;
+
+  @Column({ type: 'varchar', length: 50, default: 'credentials' })
+  provider: string;
+
+  @Column({ type: 'varchar', name: 'provider_id', length: 255, nullable: true })
+  providerId: string;
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;

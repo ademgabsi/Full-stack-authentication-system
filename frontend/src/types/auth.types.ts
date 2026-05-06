@@ -7,6 +7,7 @@ export interface AuthUser {
   role: UserRole;
   mfaEnabled: boolean;
   image: string | null;
+  provider?: string;
 }
 
 export interface LoginResponse {

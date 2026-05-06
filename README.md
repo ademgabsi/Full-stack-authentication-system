@@ -17,12 +17,13 @@ A full-stack authentication system with multi-factor authentication, role-based 
 - Cloudflare Turnstile CAPTCHA on registration and login forms
 - Session management with device tracking (view, revoke individual or all sessions)
 - Have I Been Pwned (HIBP) breach password detection on registration, password change, and password reset
+- Google OAuth social login with automatic account linking
 
 ## Tech Stack
 
 | Layer | Technologies |
 | --- | --- |
-| Backend | NestJS, TypeORM, PostgreSQL, Passport, JWT, Nodemailer, Cloudinary, Cloudflare Turnstile |
+| Backend | NestJS, TypeORM, PostgreSQL, Passport, JWT, Nodemailer, Cloudinary, Cloudflare Turnstile, Google OAuth |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, Zustand, React Query, React Hook Form + Zod |
 
 ## Project Structure
@@ -59,6 +60,7 @@ auth-system/
 - SMTP server (e.g. Gmail with App Password)
 - Cloudinary account (for image uploads)
 - Cloudflare account (for Turnstile CAPTCHA — optional, skipped if no secret key is set)
+- Google Cloud project (for OAuth social login — optional, skipped if `GOOGLE_CLIENT_ID` is not set)
 
 ### 1. Backend
 
@@ -109,7 +111,7 @@ Logged actions include:
 
 | Category | Actions |
 | --- | --- |
-| Auth | `auth.login`, `auth.login.failed`, `auth.logout`, `auth.register`, `auth.refresh`, `auth.session.revoked`, `auth.session.revoked_all` |
+| Auth | `auth.login`, `auth.login.failed`, `auth.login.google`, `auth.logout`, `auth.register`, `auth.refresh`, `auth.session.revoked`, `auth.session.revoked_all` |
 | Password | `auth.password.change`, `auth.password.reset` |
 | MFA | `auth.mfa.enabled`, `auth.mfa.disabled`, `auth.mfa.verified` |
 | Email | `auth.email.verified` |
@@ -156,6 +158,16 @@ All password-setting flows (registration, password change, password reset) check
 - Users can bypass the warning by passing `ignoreBreachWarning: true` in the request body (for non-blocking UX flows)
 - API responses are cached in-memory with a 24-hour TTL to minimize external calls
 - If the HIBP API is unavailable, the check is silently skipped (fail-open) to avoid blocking legitimate signups
+
+### Google OAuth Social Login
+
+Users can sign in or register using their Google account via server-side OAuth 2.0 redirect flow:
+
+- **Initiate**: `GET /api/auth/google` redirects to Google's consent screen
+- **Callback**: `GET /api/auth/google/callback` handles the redirect, creates or links the user, sets the refresh token cookie, and redirects to the frontend with access tokens
+- **Auto-linking**: If a Google login email matches an existing credential-based account, the accounts are automatically linked (user can still sign in with either method)
+- **Passwordless**: Google-only users don't need a password; their email is auto-verified
+- **Setup**: Create OAuth 2.0 credentials in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials), set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_CALLBACK_URL` in your `.env`
 
 ## API Documentation
 

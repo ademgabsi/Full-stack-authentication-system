@@ -60,4 +60,16 @@ export class AppConfigService {
   get captchaEnabled(): boolean {
     return this.configService.get<boolean>('app.turnstile.enabled') ?? false;
   }
+
+  get googleClientId(): string {
+    return this.configService.get<string>('app.google.clientId') ?? '';
+  }
+
+  get googleClientSecret(): string {
+    return this.configService.get<string>('app.google.clientSecret') ?? '';
+  }
+
+  get googleCallbackUrl(): string {
+    return this.configService.get<string>('app.google.callbackUrl') ?? '';
+  }
 }

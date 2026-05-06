@@ -14,6 +14,7 @@ const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 const ResendVerificationPage = lazy(() => import('@/pages/auth/ResendVerificationPage'));
 const MfaVerifyPage = lazy(() => import('@/pages/auth/MfaVerifyPage'));
+const GoogleCallbackPage = lazy(() => import('@/pages/auth/GoogleCallbackPage'));
 
 const DashboardPage = lazy(() => import('@/pages/user/DashboardPage'));
 const ProfilePage = lazy(() => import('@/pages/user/ProfilePage'));
@@ -64,6 +65,13 @@ export const router = createBrowserRouter([
       { path: 'verify-email', element: <LazyPage Component={VerifyEmailPage} /> },
       { path: 'reset-password', element: <LazyPage Component={ResetPasswordPage} /> },
       { path: 'mfa/verify', element: <LazyPage Component={MfaVerifyPage} /> },
+    ],
+  },
+
+  {
+    element: <AuthLayout />,
+    children: [
+      { path: 'auth/google/callback', element: <LazyPage Component={GoogleCallbackPage} /> },
     ],
   },
 
