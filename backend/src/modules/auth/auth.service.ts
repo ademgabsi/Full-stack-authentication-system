@@ -12,6 +12,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomUUID, randomInt, createHash } from 'crypto';
+import { Request } from 'express';
 import { User, UserRole } from '../../entities/user.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
 import { PasswordReset } from '../../entities/password-reset.entity';
@@ -19,6 +20,7 @@ import { EmailVerificationToken } from '../../entities/email-verification-token.
 import { AppConfigService } from '../../config/app-config.service';
 import { EmailService } from '../email/email.service';
 import { MfaService } from './mfa.service';
+import { AuditLogService } from '../audit/audit.service';
 import {
   RegisterDto,
   LoginDto,
@@ -49,6 +51,7 @@ export class AuthService {
     private configService: AppConfigService,
     private emailService: EmailService,
     private mfaService: MfaService,
+    private auditLogService: AuditLogService,
   ) {}
 
   private generateCode(): string {
@@ -59,7 +62,7 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, req?: Request) {
     const normalizedEmail = dto.email.toLowerCase().trim();
     const existingUser = await this.userRepository.findOne({
       where: { email: normalizedEmail },
@@ -91,6 +94,14 @@ export class AuthService {
 
     this.emailService.sendVerificationEmail(user.email, code).catch(() => {});
 
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'auth.register',
+      resource: `user:${user.id}`,
+      metadata: { email: normalizedEmail },
+      req,
+    });
+
     return {
       message:
         'Registration successful. Please check your email for the verification code.',
@@ -98,7 +109,7 @@ export class AuthService {
     };
   }
 
-  async verifyEmail(dto: VerifyEmailDto) {
+  async verifyEmail(dto: VerifyEmailDto, req?: Request) {
     const normalizedEmail = dto.email.toLowerCase().trim();
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },
@@ -125,7 +136,16 @@ export class AuthService {
     });
     await this.emailVerificationRepository.delete(verificationToken.id);
 
-    this.emailService.sendWelcomeEmail(user.email, user.fullName).catch(() => {});
+    this.emailService
+      .sendWelcomeEmail(user.email, user.fullName)
+      .catch(() => {});
+
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'auth.email.verified',
+      resource: `user:${user.id}`,
+      req,
+    });
 
     return { message: 'Email verified successfully. You can now log in.' };
   }
@@ -165,7 +185,7 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, req?: Request) {
     const normalizedEmail = dto.email.toLowerCase().trim();
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },
@@ -173,10 +193,23 @@ export class AuthService {
 
     if (!user) {
       await bcrypt.hash(dto.password, 10);
+      await this.auditLogService.log({
+        userId: null,
+        action: 'auth.login.failed',
+        metadata: { email: normalizedEmail, reason: 'user_not_found' },
+        req,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
     if (!user.isVerified) {
+      await this.auditLogService.log({
+        userId: user.id,
+        action: 'auth.login.failed',
+        resource: `user:${user.id}`,
+        metadata: { reason: 'email_not_verified' },
+        req,
+      });
       throw new ForbiddenException(
         'Please verify your email before logging in',
       );
@@ -186,6 +219,13 @@ export class AuthService {
       const remainingMinutes = Math.ceil(
         (user.lockedUntil.getTime() - Date.now()) / 60000,
       );
+      await this.auditLogService.log({
+        userId: user.id,
+        action: 'auth.login.failed',
+        resource: `user:${user.id}`,
+        metadata: { reason: 'account_locked', remainingMinutes },
+        req,
+      });
       throw new HttpException(
         `Account locked. Try again in ${remainingMinutes} minutes`,
         HttpStatus.LOCKED,
@@ -193,6 +233,13 @@ export class AuthService {
     }
 
     if (!user.isActive) {
+      await this.auditLogService.log({
+        userId: user.id,
+        action: 'auth.login.failed',
+        resource: `user:${user.id}`,
+        metadata: { reason: 'account_deactivated' },
+        req,
+      });
       throw new ForbiddenException('Account deactivated. Contact support.');
     }
 
@@ -216,7 +263,16 @@ export class AuthService {
           failedAttempts: 0,
           lockedUntil,
         });
-        this.emailService.sendAccountLockedEmail(user.email, user.fullName).catch(() => {});
+        this.emailService
+          .sendAccountLockedEmail(user.email, user.fullName)
+          .catch(() => {});
+        await this.auditLogService.log({
+          userId: user.id,
+          action: 'auth.login.failed',
+          resource: `user:${user.id}`,
+          metadata: { reason: 'account_auto_locked' },
+          req,
+        });
         throw new HttpException(
           'Account locked due to too many failed attempts',
           HttpStatus.LOCKED,
@@ -225,6 +281,13 @@ export class AuthService {
       const remaining =
         this.configService.maxFailedAttempts -
         (updatedUser?.failedAttempts ?? 1);
+      await this.auditLogService.log({
+        userId: user.id,
+        action: 'auth.login.failed',
+        resource: `user:${user.id}`,
+        metadata: { reason: 'wrong_password', remainingAttempts: remaining },
+        req,
+      });
       throw new UnauthorizedException(
         `Invalid credentials. ${remaining} attempts remaining`,
       );
@@ -256,10 +319,17 @@ export class AuthService {
       };
     }
 
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'auth.login',
+      resource: `user:${user.id}`,
+      req,
+    });
+
     return this.generateTokens(user);
   }
 
-  async verifyMfa(dto: MfaVerifyDto) {
+  async verifyMfa(dto: MfaVerifyDto, req?: Request) {
     let payload: any;
     try {
       payload = this.jwtService.verify(dto.tempToken, {
@@ -289,10 +359,17 @@ export class AuthService {
       failedAttempts: 0,
     });
 
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'auth.mfa.verified',
+      resource: `user:${user.id}`,
+      req,
+    });
+
     return this.generateTokens(user);
   }
 
-  async verifyMfaBackupCode(dto: MfaBackupCodeVerifyDto) {
+  async verifyMfaBackupCode(dto: MfaBackupCodeVerifyDto, req?: Request) {
     let payload: any;
     try {
       payload = this.jwtService.verify(dto.tempToken, {
@@ -329,6 +406,14 @@ export class AuthService {
       failedAttempts: 0,
     });
 
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'auth.mfa.verified',
+      resource: `user:${user.id}`,
+      metadata: { method: 'backup_code' },
+      req,
+    });
+
     return this.generateTokens(user);
   }
 
@@ -355,7 +440,7 @@ export class AuthService {
     };
   }
 
-  async enableMfa(userId: string, dto: MfaEnableDto) {
+  async enableMfa(userId: string, dto: MfaEnableDto, req?: Request) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new BadRequestException('User not found');
@@ -380,7 +465,16 @@ export class AuthService {
       mfaBackupCodes: hashedBackupCodes,
     });
 
-    this.emailService.sendMfaEnabledEmail(user.email, user.fullName).catch(() => {});
+    this.emailService
+      .sendMfaEnabledEmail(user.email, user.fullName)
+      .catch(() => {});
+
+    await this.auditLogService.log({
+      userId,
+      action: 'auth.mfa.enabled',
+      resource: `user:${userId}`,
+      req,
+    });
 
     return {
       message: 'MFA enabled successfully',
@@ -388,7 +482,7 @@ export class AuthService {
     };
   }
 
-  async disableMfa(userId: string, dto: MfaDisableDto) {
+  async disableMfa(userId: string, dto: MfaDisableDto, req?: Request) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new BadRequestException('User not found');
@@ -409,6 +503,13 @@ export class AuthService {
       mfaEnabled: false,
       mfaSecret: null!,
       mfaBackupCodes: null!,
+    });
+
+    await this.auditLogService.log({
+      userId,
+      action: 'auth.mfa.disabled',
+      resource: `user:${userId}`,
+      req,
     });
 
     return { message: 'MFA disabled successfully' };
@@ -435,7 +536,7 @@ export class AuthService {
     };
   }
 
-  async refreshTokens(refreshToken: string) {
+  async refreshTokens(refreshToken: string, req?: Request) {
     const tokenHash = this.hashToken(refreshToken);
     const refreshTokenEntity = await this.refreshTokenRepository.findOne({
       where: { token: tokenHash },
@@ -462,10 +563,17 @@ export class AuthService {
       isRevoked: true,
     });
 
+    await this.auditLogService.log({
+      userId: refreshTokenEntity.userId,
+      action: 'auth.refresh',
+      resource: `user:${refreshTokenEntity.userId}`,
+      req,
+    });
+
     return this.generateTokens(refreshTokenEntity.user);
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken: string, userId?: string, req?: Request) {
     const tokenHash = this.hashToken(refreshToken);
     const tokenEntity = await this.refreshTokenRepository.findOne({
       where: { token: tokenHash },
@@ -475,10 +583,18 @@ export class AuthService {
         isRevoked: true,
       });
     }
+
+    await this.auditLogService.log({
+      userId: userId || tokenEntity?.userId || null,
+      action: 'auth.logout',
+      resource: userId ? `user:${userId}` : undefined,
+      req,
+    });
+
     return { message: 'Logged out successfully' };
   }
 
-  async forgotPassword(dto: ForgotPasswordDto) {
+  async forgotPassword(dto: ForgotPasswordDto, req?: Request) {
     const normalizedEmail = dto.email.toLowerCase().trim();
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },
@@ -504,13 +620,21 @@ export class AuthService {
 
     this.emailService.sendPasswordResetEmail(user.email, code).catch(() => {});
 
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'auth.password.reset',
+      resource: `user:${user.id}`,
+      metadata: { step: 'requested' },
+      req,
+    });
+
     return {
       message:
         'If an account with this email exists, a reset code has been sent.',
     };
   }
 
-  async resetPassword(dto: ResetPasswordDto) {
+  async resetPassword(dto: ResetPasswordDto, req?: Request) {
     const normalizedEmail = dto.email.toLowerCase().trim();
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },
@@ -547,6 +671,14 @@ export class AuthService {
     await this.passwordResetRepository.update(resetToken.id, { used: true });
 
     await this.refreshTokenRepository.delete({ userId: resetToken.userId });
+
+    await this.auditLogService.log({
+      userId: resetToken.userId,
+      action: 'auth.password.reset',
+      resource: `user:${resetToken.userId}`,
+      metadata: { step: 'completed' },
+      req,
+    });
 
     return { message: 'Password reset successfully' };
   }

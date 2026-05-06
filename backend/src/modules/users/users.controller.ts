@@ -8,6 +8,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -18,6 +19,7 @@ import {
   ApiResponse,
   ApiConsumes,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 import { UsersService } from './users.service';
 import { UpdateProfileDto, ChangePasswordDto } from './dto';
 import { CurrentUser } from '../../common/decorators';
@@ -53,8 +55,9 @@ export class UsersController {
   async changePassword(
     @CurrentUser('id') userId: string,
     @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
   ) {
-    return this.usersService.changePassword(userId, dto);
+    return this.usersService.changePassword(userId, dto, req);
   }
 
   @Post('me/image')

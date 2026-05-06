@@ -53,8 +53,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 400, description: 'Email already registered' })
-  async register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(@Body() dto: RegisterDto, @Req() req: Request) {
+    return this.authService.register(dto, req);
   }
 
   @Public()
@@ -64,8 +64,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Verify email address with code' })
   @ApiResponse({ status: 200, description: 'Email verified successfully' })
   @ApiResponse({ status: 400, description: 'Invalid or expired code' })
-  async verifyEmail(@Body() dto: VerifyEmailDto) {
-    return this.authService.verifyEmail(dto);
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Req() req: Request) {
+    return this.authService.verifyEmail(dto, req);
   }
 
   @Public()
@@ -90,8 +90,12 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 403, description: 'Email not verified' })
   @ApiResponse({ status: 423, description: 'Account locked' })
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(dto, req);
     if ('refreshToken' in result) {
       res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
       const { refreshToken: _, ...body } = result;
@@ -110,8 +114,12 @@ export class AuthController {
     description: 'Returns access and refresh tokens',
   })
   @ApiResponse({ status: 401, description: 'Invalid TOTP code or temp token' })
-  async verifyMfa(@Body() dto: MfaVerifyDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.verifyMfa(dto);
+  async verifyMfa(
+    @Body() dto: MfaVerifyDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyMfa(dto, req);
     res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
     const { refreshToken: _, ...body } = result;
     return body;
@@ -126,8 +134,12 @@ export class AuthController {
     status: 200,
     description: 'Returns access and refresh tokens',
   })
-  async verifyMfaBackupCode(@Body() dto: MfaBackupCodeVerifyDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.verifyMfaBackupCode(dto);
+  async verifyMfaBackupCode(
+    @Body() dto: MfaBackupCodeVerifyDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyMfaBackupCode(dto, req);
     res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
     const { refreshToken: _, ...body } = result;
     return body;
@@ -155,8 +167,9 @@ export class AuthController {
   async enableMfa(
     @CurrentUser('id') userId: string,
     @Body() dto: MfaEnableDto,
+    @Req() req: Request,
   ) {
-    return this.authService.enableMfa(userId, dto);
+    return this.authService.enableMfa(userId, dto, req);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -168,8 +181,9 @@ export class AuthController {
   async disableMfa(
     @CurrentUser('id') userId: string,
     @Body() dto: MfaDisableDto,
+    @Req() req: Request,
   ) {
-    return this.authService.disableMfa(userId, dto);
+    return this.authService.disableMfa(userId, dto, req);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -189,12 +203,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiResponse({ status: 200, description: 'Returns new access token' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refreshTokens(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async refreshTokens(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const token = req.cookies?.['refresh_token'];
     if (!token) {
       throw new HttpException('Missing refresh token', HttpStatus.UNAUTHORIZED);
     }
-    const result = await this.authService.refreshTokens(token);
+    const result = await this.authService.refreshTokens(token, req);
     res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
     const { refreshToken: _, ...resp } = result;
     return resp;
@@ -207,10 +224,14 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout and revoke refresh token' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Req() req: Request,
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const token = req.cookies?.['refresh_token'];
     if (token) {
-      await this.authService.logout(token);
+      await this.authService.logout(token, userId, req);
     }
     res.clearCookie('refresh_token', { path: '/api/auth' });
     return { message: 'Logged out successfully' };
@@ -225,8 +246,8 @@ export class AuthController {
     status: 200,
     description: 'Reset email sent if account exists',
   })
-  async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto);
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    return this.authService.forgotPassword(dto, req);
   }
 
   @Public()
@@ -235,7 +256,7 @@ export class AuthController {
   @Throttle({ short: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: 'Reset password with code' })
   @ApiResponse({ status: 200, description: 'Password reset successfully' })
-  async resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto);
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.authService.resetPassword(dto, req);
   }
 }

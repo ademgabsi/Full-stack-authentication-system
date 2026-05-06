@@ -6,6 +6,7 @@ import { AppConfigService } from './config/app-config.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -59,6 +60,7 @@ function getSslConfig(sslEnabled: boolean) {
         limit: 100,
       },
     ]),
+    AuditModule,
     AuthModule,
     UsersModule,
     AdminModule,

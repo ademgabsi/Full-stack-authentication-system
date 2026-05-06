@@ -9,6 +9,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
   ForbiddenException,
+  Req,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
@@ -17,8 +18,14 @@ import {
   ApiBearerAuth,
   ApiResponse,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 import { AdminService } from './admin.service';
-import { AdminUpdateUserDto, ListUsersQueryDto, LockUserDto } from './dto';
+import {
+  AdminUpdateUserDto,
+  ListUsersQueryDto,
+  LockUserDto,
+  AuditLogQueryDto,
+} from './dto';
 import { Roles } from '../../common/decorators';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { UserRole } from '../../entities/user.entity';
@@ -53,11 +60,12 @@ export class AdminController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AdminUpdateUserDto,
     @CurrentUser('id') currentUserId: string,
+    @Req() req: Request,
   ) {
     if (id === currentUserId) {
       throw new ForbiddenException('Admins cannot modify their own account');
     }
-    return this.adminService.updateUser(id, dto);
+    return this.adminService.updateUser(id, dto, currentUserId, req);
   }
 
   @Put('users/:id/lock')
@@ -67,11 +75,12 @@ export class AdminController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: LockUserDto,
     @CurrentUser('id') currentUserId: string,
+    @Req() req: Request,
   ) {
     if (id === currentUserId) {
       throw new ForbiddenException('Admins cannot lock their own account');
     }
-    return this.adminService.lockUser(id, dto);
+    return this.adminService.lockUser(id, dto, currentUserId, req);
   }
 
   @Delete('users/:id')
@@ -80,12 +89,27 @@ export class AdminController {
   async deactivateUser(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') currentUserId: string,
+    @Req() req: Request,
   ) {
     if (id === currentUserId) {
       throw new ForbiddenException(
         'Admins cannot deactivate their own account',
       );
     }
-    return this.adminService.deactivateUser(id);
+    return this.adminService.deactivateUser(id, currentUserId, req);
+  }
+
+  @Get('audit-logs')
+  @ApiOperation({ summary: 'Query audit logs (paginated)' })
+  @ApiResponse({ status: 200, description: 'Returns paginated audit logs' })
+  async queryAuditLogs(@Query() query: AuditLogQueryDto) {
+    return this.adminService.queryAuditLogs(query);
+  }
+
+  @Get('audit-logs/stats')
+  @ApiOperation({ summary: 'Get audit log aggregate stats' })
+  @ApiResponse({ status: 200, description: 'Returns audit log statistics' })
+  async getAuditLogStats() {
+    return this.adminService.getAuditLogStats();
   }
 }

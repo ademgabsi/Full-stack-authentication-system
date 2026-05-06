@@ -7,8 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { Request } from 'express';
 import { User, UserRole } from '../../entities/user.entity';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { AuditLogService } from '../audit/audit.service';
 import { UpdateProfileDto, ChangePasswordDto } from './dto';
 
 @Injectable()
@@ -19,6 +21,7 @@ export class UsersService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private cloudinaryService: CloudinaryService,
+    private auditLogService: AuditLogService,
   ) {}
 
   async findById(id: string): Promise<User> {
@@ -62,6 +65,7 @@ export class UsersService {
   async changePassword(
     id: string,
     dto: ChangePasswordDto,
+    req?: Request,
   ): Promise<{ message: string }> {
     const user = await this.userRepository.findOne({
       where: { id },
@@ -81,6 +85,13 @@ export class UsersService {
 
     const newPasswordHash = await bcrypt.hash(dto.newPassword, 10);
     await this.userRepository.update(id, { passwordHash: newPasswordHash });
+
+    await this.auditLogService.log({
+      userId: id,
+      action: 'auth.password.change',
+      resource: `user:${id}`,
+      req,
+    });
 
     return { message: 'Password changed successfully' };
   }
