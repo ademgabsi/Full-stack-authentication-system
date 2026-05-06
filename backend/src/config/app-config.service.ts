@@ -52,4 +52,12 @@ export class AppConfigService {
   get cloudinaryConfig() {
     return this.configService.get('app.cloudinary')!;
   }
+
+  get turnstileSecretKey(): string {
+    return this.configService.get<string>('app.turnstile.secretKey') ?? '';
+  }
+
+  get captchaEnabled(): boolean {
+    return this.configService.get<boolean>('app.turnstile.enabled') ?? false;
+  }
 }

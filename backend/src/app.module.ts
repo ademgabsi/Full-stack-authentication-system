@@ -7,16 +7,17 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { CaptchaModule } from './modules/captcha/captcha.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 function getSslConfig(sslEnabled: boolean) {
   if (!sslEnabled) return false;
-  
+
   if (process.env.DB_SSL_REJECT_UNAUTHORIZED === 'false') {
     return { rejectUnauthorized: false };
   }
-  
+
   return {
     rejectUnauthorized: true,
     ca: process.env.DB_SSL_CA,
@@ -61,6 +62,7 @@ function getSslConfig(sslEnabled: boolean) {
       },
     ]),
     AuditModule,
+    CaptchaModule,
     AuthModule,
     UsersModule,
     AdminModule,

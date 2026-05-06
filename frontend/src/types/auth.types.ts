@@ -25,6 +25,7 @@ export interface RegisterRequest {
   password: string;
   fullName: string;
   role?: UserRole;
+  captchaToken?: string;
 }
 
 export interface RegisterResponse {
@@ -35,6 +36,7 @@ export interface RegisterResponse {
 export interface LoginRequest {
   email: string;
   password: string;
+  captchaToken?: string;
 }
 
 export interface MfaVerifyRequest {

@@ -21,6 +21,7 @@ import { AppConfigService } from '../../config/app-config.service';
 import { EmailService } from '../email/email.service';
 import { MfaService } from './mfa.service';
 import { AuditLogService } from '../audit/audit.service';
+import { CaptchaService } from '../captcha/captcha.service';
 import {
   RegisterDto,
   LoginDto,
@@ -52,6 +53,7 @@ export class AuthService {
     private emailService: EmailService,
     private mfaService: MfaService,
     private auditLogService: AuditLogService,
+    private captchaService: CaptchaService,
   ) {}
 
   private generateCode(): string {
@@ -63,6 +65,13 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto, req?: Request) {
+    const captchaValid = await this.captchaService.verify(
+      dto.captchaToken ?? '',
+    );
+    if (!captchaValid) {
+      throw new BadRequestException('CAPTCHA verification failed');
+    }
+
     const normalizedEmail = dto.email.toLowerCase().trim();
     const existingUser = await this.userRepository.findOne({
       where: { email: normalizedEmail },
@@ -186,6 +195,13 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, req?: Request) {
+    const captchaValid = await this.captchaService.verify(
+      dto.captchaToken ?? '',
+    );
+    if (!captchaValid) {
+      throw new BadRequestException('CAPTCHA verification failed');
+    }
+
     const normalizedEmail = dto.email.toLowerCase().trim();
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },

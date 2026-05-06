@@ -47,4 +47,11 @@ export default registerAs('app', () => ({
     apiKey: process.env.CLOUDINARY_API_KEY || '',
     apiSecret: process.env.CLOUDINARY_API_SECRET || '',
   },
+
+  turnstile: {
+    secretKey: process.env.TURNSTILE_SECRET_KEY || '',
+    enabled: process.env.TURNSTILE_SECRET_KEY
+      ? process.env.CAPTCHA_ENABLED !== 'false'
+      : false,
+  },
 }));

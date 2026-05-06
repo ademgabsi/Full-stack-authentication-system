@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsString, MaxLength, IsOptional } from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({ example: 'john@example.com' })
@@ -10,4 +10,9 @@ export class LoginDto {
   @IsString()
   @MaxLength(128)
   password: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  captchaToken?: string;
 }

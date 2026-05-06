@@ -1,5 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  MaxLength,
+  IsOptional,
+} from 'class-validator';
 import { IsStrongPassword } from '../../../common/validators/is-strong-password';
 
 export class RegisterDto {
@@ -19,4 +25,9 @@ export class RegisterDto {
   @MinLength(2)
   @MaxLength(255)
   fullName: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  captchaToken?: string;
 }

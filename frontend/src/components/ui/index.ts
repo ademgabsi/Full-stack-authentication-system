@@ -9,3 +9,4 @@ export { Pagination } from './Pagination';
 export { Spinner, PageLoader } from './Spinner';
 export { Alert } from './Alert';
 export { ErrorBanner } from './ErrorBanner';
+export { default as Turnstile } from './Turnstile';
