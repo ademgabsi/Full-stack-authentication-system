@@ -11,6 +11,9 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomUUID, randomInt, createHash } from 'crypto';
 import { Request } from 'express';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const UAParser = require('ua-parser-js');
 import { User, UserRole } from '../../entities/user.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
 import { PasswordReset } from '../../entities/password-reset.entity';
@@ -60,6 +63,28 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private parseDeviceInfo(req?: Request): string {
+    if (!req) return 'Unknown';
+    const ua = req.headers['user-agent'];
+    if (!ua) return 'Unknown';
+    const result = new UAParser(ua).getResult();
+    const browser = result.browser;
+    const os = result.os;
+    const browserName = browser.name || 'Unknown';
+    const browserVersion = browser.major ? ` ${browser.major}` : '';
+    const osName = os.name || 'Unknown';
+    const osVersion = os.version ? ` ${os.version}` : '';
+    return `${browserName}${browserVersion} / ${osName}${osVersion}`;
+  }
+
+  private getIpAddress(req?: Request): string {
+    if (!req) return 'Unknown';
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+    if (Array.isArray(forwarded)) return forwarded[0].trim();
+    return req.ip || 'Unknown';
   }
 
   async register(dto: RegisterDto, req?: Request) {
@@ -334,7 +359,7 @@ export class AuthService {
       req,
     });
 
-    return this.generateTokens(user);
+    return this.generateTokens(user, req);
   }
 
   async verifyMfa(dto: MfaVerifyDto, req?: Request) {
@@ -374,7 +399,7 @@ export class AuthService {
       req,
     });
 
-    return this.generateTokens(user);
+    return this.generateTokens(user, req);
   }
 
   async verifyMfaBackupCode(dto: MfaBackupCodeVerifyDto, req?: Request) {
@@ -422,7 +447,7 @@ export class AuthService {
       req,
     });
 
-    return this.generateTokens(user);
+    return this.generateTokens(user, req);
   }
 
   async setupMfa(userId: string) {
@@ -578,7 +603,7 @@ export class AuthService {
       req,
     });
 
-    return this.generateTokens(refreshTokenEntity.user);
+    return this.generateTokens(refreshTokenEntity.user, req);
   }
 
   async logout(refreshToken: string, userId?: string, req?: Request) {
@@ -691,7 +716,92 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
-  private async generateTokens(user: User) {
+  async listSessions(userId: string, currentRefreshToken?: string) {
+    let currentTokenId: string | null = null;
+    if (currentRefreshToken) {
+      const tokenHash = this.hashToken(currentRefreshToken);
+      const current = await this.refreshTokenRepository.findOne({
+        where: { token: tokenHash },
+      });
+      currentTokenId = current?.id ?? null;
+    }
+
+    const tokens = await this.refreshTokenRepository.find({
+      where: { userId, isRevoked: false },
+      order: { lastUsedAt: 'DESC' },
+    });
+
+    const now = new Date();
+    return tokens
+      .filter((t) => t.expiresAt > now)
+      .map((t) => ({
+        id: t.id,
+        deviceInfo: t.deviceInfo ?? 'Unknown',
+        ipAddress: t.ipAddress ?? 'Unknown',
+        location: t.location ?? null,
+        createdAt: t.createdAt,
+        lastUsedAt: t.lastUsedAt ?? t.createdAt,
+        isCurrent: t.id === currentTokenId,
+      }));
+  }
+
+  async revokeSession(sessionId: string, userId: string, req?: Request) {
+    const token = await this.refreshTokenRepository.findOne({
+      where: { id: sessionId, userId },
+    });
+    if (!token) {
+      throw new BadRequestException('Session not found');
+    }
+
+    await this.refreshTokenRepository.update(sessionId, { isRevoked: true });
+
+    await this.auditLogService.log({
+      userId,
+      action: 'auth.session.revoked',
+      resource: `session:${sessionId}`,
+      req,
+    });
+
+    return { message: 'Session revoked successfully' };
+  }
+
+  async revokeAllSessions(
+    userId: string,
+    currentRefreshToken?: string,
+    req?: Request,
+  ) {
+    let currentTokenId: string | null = null;
+    if (currentRefreshToken) {
+      const tokenHash = this.hashToken(currentRefreshToken);
+      const current = await this.refreshTokenRepository.findOne({
+        where: { token: tokenHash },
+      });
+      currentTokenId = current?.id ?? null;
+    }
+
+    const tokens = await this.refreshTokenRepository.find({
+      where: { userId, isRevoked: false },
+    });
+
+    const toRevoke = tokens
+      .filter((t) => t.id !== currentTokenId)
+      .map((t) => t.id);
+
+    if (toRevoke.length > 0) {
+      await this.refreshTokenRepository.update(toRevoke, { isRevoked: true });
+    }
+
+    await this.auditLogService.log({
+      userId,
+      action: 'auth.session.revoked_all',
+      resource: `user:${userId}`,
+      req,
+    });
+
+    return { message: 'All other sessions revoked successfully' };
+  }
+
+  private async generateTokens(user: User, req?: Request) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -716,6 +826,9 @@ export class AuthService {
         token: tokenHash,
         userId: user.id,
         expiresAt,
+        deviceInfo: this.parseDeviceInfo(req),
+        ipAddress: this.getIpAddress(req),
+        lastUsedAt: new Date(),
       }),
     );
 

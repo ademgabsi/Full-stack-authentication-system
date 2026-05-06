@@ -15,6 +15,7 @@ A full-stack authentication system with multi-factor authentication, role-based 
 - Swagger API documentation (dev only)
 - Audit logging of all security-relevant actions (login, MFA, password changes, admin actions)
 - Cloudflare Turnstile CAPTCHA on registration and login forms
+- Session management with device tracking (view, revoke individual or all sessions)
 
 ## Tech Stack
 
@@ -107,7 +108,7 @@ Logged actions include:
 
 | Category | Actions |
 | --- | --- |
-| Auth | `auth.login`, `auth.login.failed`, `auth.logout`, `auth.register`, `auth.refresh` |
+| Auth | `auth.login`, `auth.login.failed`, `auth.logout`, `auth.register`, `auth.refresh`, `auth.session.revoked`, `auth.session.revoked_all` |
 | Password | `auth.password.change`, `auth.password.reset` |
 | MFA | `auth.mfa.enabled`, `auth.mfa.disabled`, `auth.mfa.verified` |
 | Email | `auth.email.verified` |
@@ -126,6 +127,16 @@ All login and email verification errors return generic responses to prevent acco
 - Failed attempt counts and lock status are never exposed to the client
 - Account lockout emails are the only channel that reveals lock status to the account owner
 - Email verification returns `Invalid verification code` even when the email is already verified
+
+### Session Management
+
+Each refresh token tracks device info (browser/OS from user-agent), IP address, and last-used timestamp.
+
+- `GET /api/auth/sessions` — list all active sessions (marks current session)
+- `DELETE /api/auth/sessions/:id` — revoke a specific session
+- `DELETE /api/auth/sessions` — revoke all sessions except the current one
+
+The frontend provides a sessions page at `/security/sessions` with device icons, IP, location, last-active time, and revoke buttons.
 
 ### CAPTCHA / Bot Detection
 

@@ -1,7 +1,10 @@
 import {
   Controller,
   Post,
+  Get,
+  Delete,
   Body,
+  Param,
   Req,
   Res,
   UseGuards,
@@ -235,6 +238,44 @@ export class AuthController {
     }
     res.clearCookie('refresh_token', { path: '/api/auth' });
     return { message: 'Logged out successfully' };
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('sessions')
+  @ApiBearerAuth()
+  @ApiCookieAuth()
+  @ApiOperation({ summary: 'List all active sessions' })
+  @ApiResponse({ status: 200, description: 'Returns active sessions' })
+  async listSessions(@CurrentUser('id') userId: string, @Req() req: Request) {
+    const currentRefreshToken = req.cookies?.['refresh_token'];
+    return this.authService.listSessions(userId, currentRefreshToken);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete('sessions/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke a specific session' })
+  @ApiResponse({ status: 200, description: 'Session revoked' })
+  async revokeSession(
+    @Param('id') sessionId: string,
+    @CurrentUser('id') userId: string,
+    @Req() req: Request,
+  ) {
+    return this.authService.revokeSession(sessionId, userId, req);
+  }
+
+  @ApiCookieAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @Delete('sessions')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke all sessions except current' })
+  @ApiResponse({ status: 200, description: 'All other sessions revoked' })
+  async revokeAllSessions(
+    @CurrentUser('id') userId: string,
+    @Req() req: Request,
+  ) {
+    const currentRefreshToken = req.cookies?.['refresh_token'];
+    return this.authService.revokeAllSessions(userId, currentRefreshToken, req);
   }
 
   @Public()

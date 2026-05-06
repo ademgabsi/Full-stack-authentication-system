@@ -32,6 +32,18 @@ export class RefreshToken {
   @Column({ type: 'boolean', name: 'is_revoked', default: false })
   isRevoked: boolean;
 
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'device_info' })
+  deviceInfo: string;
+
+  @Column({ type: 'varchar', length: 45, nullable: true, name: 'ip_address' })
+  ipAddress: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  location: string;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'last_used_at' })
+  lastUsedAt: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

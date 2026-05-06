@@ -91,3 +91,13 @@ export interface ResendVerificationRequest {
 export interface MessageResponse {
   message: string;
 }
+
+export interface Session {
+  id: string;
+  deviceInfo: string;
+  ipAddress: string;
+  location: string | null;
+  createdAt: string;
+  lastUsedAt: string;
+  isCurrent: boolean;
+}

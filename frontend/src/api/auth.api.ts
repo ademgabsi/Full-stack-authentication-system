@@ -16,6 +16,7 @@ import type {
   ResendVerificationRequest,
   VerifyEmailRequest,
   MessageResponse,
+  Session,
 } from '@/types';
 
 export const authApi = {
@@ -60,4 +61,13 @@ export const authApi = {
 
   resetPassword: (data: ResetPasswordRequest) =>
     apiClient.post<MessageResponse>('/auth/reset-password', data).then((r) => r.data),
+
+  getSessions: () =>
+    apiClient.get<Session[]>('/auth/sessions').then((r) => r.data),
+
+  revokeSession: (id: string) =>
+    apiClient.delete<MessageResponse>(`/auth/sessions/${id}`).then((r) => r.data),
+
+  revokeAllSessions: () =>
+    apiClient.delete<MessageResponse>('/auth/sessions').then((r) => r.data),
 };

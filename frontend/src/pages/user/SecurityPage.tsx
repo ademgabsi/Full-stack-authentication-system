@@ -4,7 +4,7 @@ import { useProfile } from '@/hooks/useUser';
 import { useDisableMfa, useRegenerateBackupCodes } from '@/hooks/useAuth';
 import { Link } from 'react-router';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Shield, Key, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Shield, Key, AlertTriangle, Loader2, Monitor } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -131,6 +131,26 @@ export default function SecurityPage() {
             </div>
           )}
         </CardContent>
+      </Card>
+
+      {/* Active Sessions */}
+      <Card className="mb-6">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
+              <Monitor className="h-5 w-5 text-gray-600" />
+            </div>
+            <div>
+              <CardTitle>Active Sessions</CardTitle>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Manage your active sessions across devices
+              </p>
+            </div>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/security/sessions')}>
+            View All Sessions
+          </Button>
+        </CardHeader>
       </Card>
 
       {/* Backup Codes (only if MFA enabled) */}

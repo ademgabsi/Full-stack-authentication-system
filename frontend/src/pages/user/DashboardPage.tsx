@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui';
 import { useProfile } from '@/hooks/useUser';
 import { formatDate, getInitials } from '@/lib/utils';
-import { Shield, Mail, Calendar, CheckCircle, XCircle, User, Lock } from 'lucide-react';
+import { Shield, Mail, Calendar, CheckCircle, XCircle, User, Lock, Monitor } from 'lucide-react';
 import { Spinner, ErrorBanner } from '@/components/ui';
 
 export default function DashboardPage() {
@@ -29,6 +29,7 @@ export default function DashboardPage() {
     { label: 'Profile', description: 'View and edit your personal information', path: '/profile', icon: User },
     { label: 'Security', description: 'Manage 2FA and security settings', path: '/security', icon: Shield },
     { label: 'Change Password', description: 'Update your account password', path: '/profile/password', icon: Lock },
+    { label: 'Active Sessions', description: 'View and manage your active sessions', path: '/security/sessions', icon: Monitor },
   ];
 
   return (
@@ -93,7 +94,7 @@ export default function DashboardPage() {
       {/* Quick actions */}
       <div className="mt-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action) => (
             <Link
               key={action.path}
