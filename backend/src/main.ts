@@ -56,9 +56,7 @@ async function bootstrap() {
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('AuthSystem API')
-      .setDescription(
-        'AuthSystem API - Authentication with MFA Documentation',
-      )
+      .setDescription('AuthSystem API - Authentication with MFA Documentation')
       .setVersion('1.0')
       .addBearerAuth()
       .addTag('Authentication', 'Auth endpoints including MFA')

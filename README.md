@@ -118,6 +118,15 @@ Admin endpoints for querying logs:
 - `GET /admin/audit-logs?userId=&action=&from=&to=&page=&limit=` — paginated query
 - `GET /admin/audit-logs/stats` — aggregate stats (logins per day, failure counts, action breakdown)
 
+### Anti-Enumeration
+
+All login and email verification errors return generic responses to prevent account enumeration:
+
+- Login failures always return `Invalid credentials` regardless of whether the account exists, is unverified, locked, deactivated, or the password is wrong
+- Failed attempt counts and lock status are never exposed to the client
+- Account lockout emails are the only channel that reveals lock status to the account owner
+- Email verification returns `Invalid verification code` even when the email is already verified
+
 ### CAPTCHA / Bot Detection
 
 Cloudflare Turnstile is integrated on the registration and login forms. The frontend renders an invisible/managed widget, attaches the token to the form payload, and the backend verifies it server-side via Cloudflare's siteverify API.

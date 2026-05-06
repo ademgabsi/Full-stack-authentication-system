@@ -3,13 +3,11 @@ import {
   BadRequestException,
   UnauthorizedException,
   ForbiddenException,
-  HttpException,
-  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomUUID, randomInt, createHash } from 'crypto';
 import { Request } from 'express';
@@ -137,7 +135,7 @@ export class AuthService {
       throw new BadRequestException('Verification code has expired');
     }
     if (user.isVerified) {
-      throw new BadRequestException('Email already verified');
+      throw new BadRequestException('Invalid verification code');
     }
 
     await this.userRepository.update(user.id, {
@@ -219,6 +217,16 @@ export class AuthService {
     }
 
     if (!user.isVerified) {
+      this.emailService
+        .sendVerificationEmail(
+          user.email,
+          (
+            await this.emailVerificationRepository.findOne({
+              where: { userId: user.id },
+            })
+          )?.code ?? '',
+        )
+        .catch(() => {});
       await this.auditLogService.log({
         userId: user.id,
         action: 'auth.login.failed',
@@ -226,26 +234,18 @@ export class AuthService {
         metadata: { reason: 'email_not_verified' },
         req,
       });
-      throw new ForbiddenException(
-        'Please verify your email before logging in',
-      );
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-      const remainingMinutes = Math.ceil(
-        (user.lockedUntil.getTime() - Date.now()) / 60000,
-      );
       await this.auditLogService.log({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
-        metadata: { reason: 'account_locked', remainingMinutes },
+        metadata: { reason: 'account_locked' },
         req,
       });
-      throw new HttpException(
-        `Account locked. Try again in ${remainingMinutes} minutes`,
-        HttpStatus.LOCKED,
-      );
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     if (!user.isActive) {
@@ -256,7 +256,7 @@ export class AuthService {
         metadata: { reason: 'account_deactivated' },
         req,
       });
-      throw new ForbiddenException('Account deactivated. Contact support.');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -289,24 +289,16 @@ export class AuthService {
           metadata: { reason: 'account_auto_locked' },
           req,
         });
-        throw new HttpException(
-          'Account locked due to too many failed attempts',
-          HttpStatus.LOCKED,
-        );
+        throw new UnauthorizedException('Invalid credentials');
       }
-      const remaining =
-        this.configService.maxFailedAttempts -
-        (updatedUser?.failedAttempts ?? 1);
       await this.auditLogService.log({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
-        metadata: { reason: 'wrong_password', remainingAttempts: remaining },
+        metadata: { reason: 'wrong_password' },
         req,
       });
-      throw new UnauthorizedException(
-        `Invalid credentials. ${remaining} attempts remaining`,
-      );
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     await this.userRepository.update(user.id, {
