@@ -63,6 +63,9 @@ export class User {
   @Column({ type: 'boolean', name: 'is_verified', default: false })
   isVerified: boolean;
 
+  @Column({ type: 'boolean', name: 'passkeys_enabled', default: false })
+  passkeysEnabled: boolean;
+
   @Column({ type: 'timestamp', name: 'last_login', nullable: true })
   lastLogin: Date;
 

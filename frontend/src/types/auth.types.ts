@@ -102,3 +102,11 @@ export interface Session {
   lastUsedAt: string;
   isCurrent: boolean;
 }
+
+export interface WebAuthnCredential {
+  id: string;
+  name: string;
+  deviceType: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}

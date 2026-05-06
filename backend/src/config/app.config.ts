@@ -62,4 +62,10 @@ export default registerAs('app', () => ({
       process.env.GOOGLE_CALLBACK_URL ||
       'http://localhost:3000/api/auth/google/callback',
   },
+
+  webauthn: {
+    rpName: process.env.WEBAUTHN_RP_NAME || 'Auth System',
+    rpId: process.env.WEBAUTHN_RP_ID || 'localhost',
+    origin: process.env.WEBAUTHN_ORIGIN || 'http://localhost:5173',
+  },
 }));

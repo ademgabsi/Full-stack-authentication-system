@@ -4,7 +4,7 @@ import { useProfile } from '@/hooks/useUser';
 import { useDisableMfa, useRegenerateBackupCodes } from '@/hooks/useAuth';
 import { Link } from 'react-router';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Shield, Key, AlertTriangle, Loader2, Monitor } from 'lucide-react';
+import { ArrowLeft, Shield, Key, AlertTriangle, Loader2, Monitor, Fingerprint } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -149,6 +149,25 @@ export default function SecurityPage() {
           </div>
           <Button variant="secondary" size="sm" onClick={() => navigate('/security/sessions')}>
             View All Sessions
+          </Button>
+        </CardHeader>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary-50 flex items-center justify-center">
+              <Fingerprint className="h-5 w-5 text-primary-600" />
+            </div>
+            <div>
+              <CardTitle>Passkeys</CardTitle>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Passwordless sign-in with biometrics or security keys
+              </p>
+            </div>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/security/passkeys')}>
+            Manage Passkeys
           </Button>
         </CardHeader>
       </Card>

@@ -18,12 +18,13 @@ A full-stack authentication system with multi-factor authentication, role-based 
 - Session management with device tracking (view, revoke individual or all sessions)
 - Have I Been Pwned (HIBP) breach password detection on registration, password change, and password reset
 - Google OAuth social login with automatic account linking
+- Passkeys / WebAuthn passwordless login and registration using biometrics or hardware keys
 
 ## Tech Stack
 
 | Layer | Technologies |
 | --- | --- |
-| Backend | NestJS, TypeORM, PostgreSQL, Passport, JWT, Nodemailer, Cloudinary, Cloudflare Turnstile, Google OAuth |
+| Backend | NestJS, TypeORM, PostgreSQL, Passport, JWT, Nodemailer, Cloudinary, Cloudflare Turnstile, Google OAuth, SimpleWebAuthn |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, Zustand, React Query, React Hook Form + Zod |
 
 ## Project Structure
@@ -111,7 +112,7 @@ Logged actions include:
 
 | Category | Actions |
 | --- | --- |
-| Auth | `auth.login`, `auth.login.failed`, `auth.login.google`, `auth.logout`, `auth.register`, `auth.refresh`, `auth.session.revoked`, `auth.session.revoked_all` |
+| Auth | `auth.login`, `auth.login.failed`, `auth.login.google`, `auth.login.webauthn`, `auth.webauthn.register`, `auth.webauthn.credential_deleted`, `auth.logout`, `auth.register`, `auth.refresh`, `auth.session.revoked`, `auth.session.revoked_all` |
 | Password | `auth.password.change`, `auth.password.reset` |
 | MFA | `auth.mfa.enabled`, `auth.mfa.disabled`, `auth.mfa.verified` |
 | Email | `auth.email.verified` |
@@ -168,6 +169,17 @@ Users can sign in or register using their Google account via server-side OAuth 2
 - **Auto-linking**: If a Google login email matches an existing credential-based account, the accounts are automatically linked (user can still sign in with either method)
 - **Passwordless**: Google-only users don't need a password; their email is auto-verified
 - **Setup**: Create OAuth 2.0 credentials in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials), set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_CALLBACK_URL` in your `.env`
+
+### Passkeys / WebAuthn
+
+Users can register and authenticate with passkeys (biometrics, hardware security keys, or device PINs) for fully passwordless login:
+
+- **Registration**: `POST /api/auth/webauthn/register/options` → `POST /api/auth/webauthn/register/verify` — generates a challenge, verifies the credential, stores it server-side
+- **Authentication**: `POST /api/auth/webauthn/login/options` → `POST /api/auth/webauthn/login/verify` — supports both email-specific and discoverable (userless) credential flows
+- **Management**: `GET/PATCH/DELETE /api/auth/webauthn/credentials` — list, rename, and delete registered passkeys
+- **Discoverable credentials**: Passkeys work without typing an email first — the browser shows an account picker
+- **Security**: Uses the [SimpleWebAuthn](https://simplewebauthn.dev/) library with k-anonymity; credentials are scoped to your Relying Party ID
+- **Setup**: Set `WEBAUTHN_RP_NAME`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_ORIGIN` in your `.env` (defaults work for `localhost`)
 
 ## API Documentation
 

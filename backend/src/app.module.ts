@@ -9,6 +9,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { CaptchaModule } from './modules/captcha/captcha.module';
 import { BreachPasswordModule } from './modules/auth/breach-password.module';
+import { WebAuthnModule } from './modules/auth/webauthn.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -66,6 +67,7 @@ function getSslConfig(sslEnabled: boolean) {
     CaptchaModule,
     BreachPasswordModule,
     AuthModule,
+    WebAuthnModule,
     UsersModule,
     AdminModule,
   ],

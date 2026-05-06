@@ -650,6 +650,22 @@ export class AuthService {
     return this.generateTokens(user!, req);
   }
 
+  async findUserById(id: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    return user;
+  }
+
+  async setPasskeysEnabled(userId: string, enabled: boolean): Promise<void> {
+    await this.userRepository.update(userId, { passkeysEnabled: enabled });
+  }
+
+  async generateTokensForUser(user: User, req?: Request) {
+    return this.generateTokens(user, req);
+  }
+
   async refreshTokens(refreshToken: string, req?: Request) {
     const tokenHash = this.hashToken(refreshToken);
     const refreshTokenEntity = await this.refreshTokenRepository.findOne({

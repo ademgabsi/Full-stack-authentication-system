@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Button, Input, ErrorBanner, Turnstile } from '@/components/ui';
 import { useLogin } from '@/hooks/useAuth';
+import { useWebAuthnLogin } from '@/hooks/useWebAuthn';
 import { useAuthStore } from '@/stores/auth.store';
 import type { LoginResponse, MfaRequiredResponse } from '@/types';
 
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const { mutate: login, isPending, error } = useLogin();
   const [captchaToken, setCaptchaToken] = useState('');
   const [turnstileKey, setTurnstileKey] = useState(0);
+  const { mutate: passkeyLogin, isPending: isPasskeyPending, error: passkeyError } = useWebAuthnLogin();
 
   const {
     register: reg,
@@ -143,6 +145,29 @@ export default function LoginPage() {
         </svg>
         Sign in with Google
       </a>
+
+      {passkeyError && (
+        <ErrorBanner error={passkeyError} className="mt-3" />
+      )}
+      <button
+        type="button"
+        onClick={() => passkeyLogin()}
+        disabled={isPasskeyPending}
+        className="mt-3 flex items-center justify-center gap-3 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-50"
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" />
+          <path d="M14 13.12c0 2.38 0 6.38-1 8.88" />
+          <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" />
+          <path d="M2 12a10 10 0 0 1 18-6" />
+          <path d="M2 16h.01" />
+          <path d="M21.8 16c.2-2 .131-5.354 0-6" />
+          <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" />
+          <path d="M8.65 22c.21-.66.45-1.32.57-2" />
+          <path d="M9 6.8a6 6 0 0 1 9 5.2v2" />
+        </svg>
+        {isPasskeyPending ? 'Authenticating...' : 'Sign in with Passkey'}
+      </button>
 
       <p className="mt-6 text-center text-sm text-gray-500">
         Don&apos;t have an account?{' '}

@@ -17,6 +17,7 @@ import type {
   VerifyEmailRequest,
   MessageResponse,
   Session,
+  WebAuthnCredential,
 } from '@/types';
 
 export const authApi = {
@@ -70,4 +71,25 @@ export const authApi = {
 
   revokeAllSessions: () =>
     apiClient.delete<MessageResponse>('/auth/sessions').then((r) => r.data),
+
+  webauthnRegistrationOptions: () =>
+    apiClient.post<PublicKeyCredentialCreationOptionsJSON>('/auth/webauthn/register/options').then((r) => r.data),
+
+  webauthnRegistrationVerify: (response: string, name?: string) =>
+    apiClient.post<{ message: string; credential: { id: string; name: string; createdAt: string } }>('/auth/webauthn/register/verify', { response, name }).then((r) => r.data),
+
+  webauthnAuthenticationOptions: (email?: string) =>
+    apiClient.post<PublicKeyCredentialRequestOptionsJSON>('/auth/webauthn/login/options', { email }).then((r) => r.data),
+
+  webauthnAuthenticationVerify: (response: string) =>
+    apiClient.post<LoginResponse>('/auth/webauthn/login/verify', { response }).then((r) => r.data),
+
+  getWebAuthnCredentials: () =>
+    apiClient.get<WebAuthnCredential[]>('/auth/webauthn/credentials').then((r) => r.data),
+
+  renameWebAuthnCredential: (id: string, name: string) =>
+    apiClient.patch<MessageResponse>(`/auth/webauthn/credentials/${id}`, { name }).then((r) => r.data),
+
+  deleteWebAuthnCredential: (id: string) =>
+    apiClient.delete<MessageResponse>(`/auth/webauthn/credentials/${id}`).then((r) => r.data),
 };

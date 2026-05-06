@@ -72,4 +72,16 @@ export class AppConfigService {
   get googleCallbackUrl(): string {
     return this.configService.get<string>('app.google.callbackUrl') ?? '';
   }
+
+  get webauthnRpName(): string {
+    return this.configService.get<string>('app.webauthn.rpName') ?? 'Auth System';
+  }
+
+  get webauthnRpId(): string {
+    return this.configService.get<string>('app.webauthn.rpId') ?? 'localhost';
+  }
+
+  get webauthnOrigin(): string {
+    return this.configService.get<string>('app.webauthn.origin') ?? 'http://localhost:5173';
+  }
 }
