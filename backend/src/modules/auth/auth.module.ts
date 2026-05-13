@@ -12,6 +12,7 @@ import { RefreshToken } from '../../entities/refresh-token.entity';
 import { PasswordReset } from '../../entities/password-reset.entity';
 import { EmailVerificationToken } from '../../entities/email-verification-token.entity';
 import { EmailModule } from '../email/email.module';
+import { WebhookModule } from '../webhook/webhook.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { EmailModule } from '../email/email.module';
     PassportModule,
     JwtModule.register({}),
     EmailModule,
+    WebhookModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, MfaService, JwtStrategy, GoogleStrategy],

@@ -6,12 +6,14 @@ import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
 import { UsersModule } from '../users/users.module';
 import { AppConfigModule } from '../../config/config.module';
+import { WebhookModule } from '../webhook/webhook.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, AuditLog]),
     UsersModule,
     AppConfigModule,
+    WebhookModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

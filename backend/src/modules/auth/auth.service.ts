@@ -24,6 +24,8 @@ import { MfaService } from './mfa.service';
 import { AuditLogService } from '../audit/audit.service';
 import { CaptchaService } from '../captcha/captcha.service';
 import { BreachPasswordService } from './breach-password.service';
+import { WebhookService } from '../webhook/webhook.service';
+import { WebhookEvent } from '../../entities/webhook.entity';
 import { GoogleProfile } from './strategies/google.strategy';
 import {
   RegisterDto,
@@ -58,6 +60,7 @@ export class AuthService {
     private auditLogService: AuditLogService,
     private captchaService: CaptchaService,
     private breachService: BreachPasswordService,
+    private webhookService: WebhookService,
   ) {}
 
   private generateCode(): string {
@@ -144,6 +147,14 @@ export class AuthService {
       req,
     });
 
+    this.webhookService
+      .dispatchEvent(WebhookEvent.USER_REGISTERED, {
+        userId: user.id,
+        email: normalizedEmail,
+        fullName: user.fullName,
+      })
+      .catch(() => {});
+
     return {
       message:
         'Registration successful. Please check your email for the verification code.',
@@ -188,6 +199,13 @@ export class AuthService {
       resource: `user:${user.id}`,
       req,
     });
+
+    this.webhookService
+      .dispatchEvent(WebhookEvent.USER_EMAIL_VERIFIED, {
+        userId: user.id,
+        email: user.email,
+      })
+      .catch(() => {});
 
     return { message: 'Email verified successfully. You can now log in.' };
   }
@@ -248,6 +266,12 @@ export class AuthService {
         metadata: { email: normalizedEmail, reason: 'user_not_found' },
         req,
       });
+      this.webhookService
+        .dispatchEvent(WebhookEvent.USER_LOGIN_FAILED, {
+          email: normalizedEmail,
+          reason: 'user_not_found',
+        })
+        .catch(() => {});
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -324,6 +348,13 @@ export class AuthService {
           metadata: { reason: 'account_auto_locked' },
           req,
         });
+        this.webhookService
+          .dispatchEvent(WebhookEvent.USER_LOCKED, {
+            userId: user.id,
+            email: user.email,
+            reason: 'auto_locked_max_attempts',
+          })
+          .catch(() => {});
         throw new UnauthorizedException('Invalid credentials');
       }
       await this.auditLogService.log({
@@ -368,6 +399,13 @@ export class AuthService {
       resource: `user:${user.id}`,
       req,
     });
+
+    this.webhookService
+      .dispatchEvent(WebhookEvent.USER_LOGIN, {
+        userId: user.id,
+        email: user.email,
+      })
+      .catch(() => {});
 
     return this.generateTokens(user, req);
   }
@@ -519,6 +557,13 @@ export class AuthService {
       req,
     });
 
+    this.webhookService
+      .dispatchEvent(WebhookEvent.MFA_ENABLED, {
+        userId,
+        email: user.email,
+      })
+      .catch(() => {});
+
     return {
       message: 'MFA enabled successfully',
       backupCodes,
@@ -554,6 +599,13 @@ export class AuthService {
       resource: `user:${userId}`,
       req,
     });
+
+    this.webhookService
+      .dispatchEvent(WebhookEvent.MFA_DISABLED, {
+        userId,
+        email: user.email,
+      })
+      .catch(() => {});
 
     return { message: 'MFA disabled successfully' };
   }
@@ -816,6 +868,12 @@ export class AuthService {
       metadata: { step: 'completed' },
       req,
     });
+
+    this.webhookService
+      .dispatchEvent(WebhookEvent.USER_PASSWORD_RESET, {
+        userId: resetToken.userId,
+      })
+      .catch(() => {});
 
     return { message: 'Password reset successfully' };
   }

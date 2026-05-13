@@ -29,6 +29,8 @@ const AdminOverview = lazy(() => import('@/pages/admin/Overview'));
 const UsersList = lazy(() => import('@/pages/admin/UsersList'));
 const UserDetail = lazy(() => import('@/pages/admin/UserDetail'));
 const UserEdit = lazy(() => import('@/pages/admin/UserEdit'));
+const WebhooksList = lazy(() => import('@/pages/admin/WebhooksList'));
+const WebhookDetail = lazy(() => import('@/pages/admin/WebhookDetail'));
 
 function LazyPage({ Component }: { Component: LazyExoticComponent<ComponentType> }) {
   return (
@@ -104,6 +106,8 @@ export const router = createBrowserRouter([
           { path: 'admin/users', element: <LazyPage Component={UsersList} /> },
           { path: 'admin/users/:id', element: <LazyPage Component={UserDetail} /> },
           { path: 'admin/users/:id/edit', element: <LazyPage Component={UserEdit} /> },
+          { path: 'admin/webhooks', element: <LazyPage Component={WebhooksList} /> },
+          { path: 'admin/webhooks/:id', element: <LazyPage Component={WebhookDetail} /> },
         ],
       },
     ],

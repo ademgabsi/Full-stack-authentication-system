@@ -12,6 +12,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { CaptchaModule } from './modules/captcha/captcha.module';
 import { BreachPasswordModule } from './modules/auth/breach-password.module';
 import { WebAuthnModule } from './modules/auth/webauthn.module';
+import { WebhookModule } from './modules/webhook/webhook.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RedisThrottlerStorage } from './common/storage/redis-throttler.storage';
@@ -82,11 +83,9 @@ function getSslConfig(sslEnabled: boolean) {
     WebAuthnModule,
     UsersModule,
     AdminModule,
+    WebhookModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

@@ -19,6 +19,7 @@ A full-stack authentication system with multi-factor authentication, role-based 
 - Have I Been Pwned (HIBP) breach password detection on registration, password change, and password reset
 - Google OAuth social login with automatic account linking
 - Passkeys / WebAuthn passwordless login and registration using biometrics or hardware keys
+- Webhooks & event system — notify external services on 12 auth events (user.registered, user.locked, mfa.enabled, etc.) with HMAC-SHA256 signed payloads, delivery tracking, and admin management UI
 
 ## Tech Stack
 
@@ -36,7 +37,7 @@ auth-system/
 │   │   ├── common/   # Guards, decorators, filters, interceptors, validators, storage
 │   │   ├── config/   # App configuration service
 │   │   ├── entities/ # TypeORM entities
-│   │   ├── modules/  # Feature modules (auth, users, admin, email, cloudinary, audit, captcha)
+│   │   ├── modules/  # Feature modules (auth, users, admin, email, cloudinary, audit, captcha, webhook)
 │   │   └── seed/     # Database seed scripts
 │   └── test/         # E2E tests
 ├── frontend/         # React SPA
@@ -174,7 +175,7 @@ The frontend provides a sessions page at `/security/sessions` with device icons,
 
 ### CAPTCHA / Bot Detection
 
-Cloudflare Turnstile is integrated on the registration and login forms. The frontend renders an invisible/managed widget, attaches the token to the form payload, and the backend verifies it server-side via Cloudflare's siteverify API.
+Cloudflare Turnstile is integrated on the registration, login, and admin login forms. The frontend renders an invisible/managed widget, attaches the token to the form payload, and the backend verifies it server-side via Cloudflare's siteverify API.
 
 - **Environment-conditional**: CAPTCHA is automatically skipped when `TURNSTILE_SECRET_KEY` is not set
 - **Reset on failure**: The widget resets automatically after a failed submission
@@ -210,6 +211,69 @@ Users can register and authenticate with passkeys (biometrics, hardware security
 - **Discoverable credentials**: Passkeys work without typing an email first — the browser shows an account picker
 - **Security**: Uses the [SimpleWebAuthn](https://simplewebauthn.dev/) library with k-anonymity; credentials are scoped to your Relying Party ID
 - **Setup**: Set `WEBAUTHN_RP_NAME`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_ORIGIN` in your `.env` (defaults work for `localhost`)
+
+### Webhooks & Event System
+
+Admins can configure webhooks to receive real-time HTTP notifications when authentication events occur. Each webhook subscribes to specific events and delivers signed JSON payloads to a configurable URL.
+
+**Available Events:**
+
+| Event | Description | Trigger |
+| --- | --- | --- |
+| `user.registered` | New account created | Registration |
+| `user.email_verified` | Email address verified | Email verification |
+| `user.login` | Successful login | Login (non-MFA) |
+| `user.login_failed` | Failed login attempt | Login failure |
+| `user.locked` | Account locked | Auto-lock or admin lock |
+| `user.unlocked` | Account unlocked | Admin unlock |
+| `user.deactivated` | Account deactivated | Admin deactivation |
+| `user.password_changed` | Password changed | Password change |
+| `user.password_reset` | Password reset completed | Password reset flow |
+| `user.role_changed` | User role changed | Admin role update |
+| `mfa.enabled` | MFA enabled by user | MFA setup |
+| `mfa.disabled` | MFA disabled by user | MFA disable |
+
+**Payload Format:**
+
+```json
+{
+  "id": "unique-delivery-id",
+  "event": "user.registered",
+  "timestamp": "2026-05-13T00:00:00.000Z",
+  "data": {
+    "userId": "uuid",
+    "email": "user@example.com"
+  }
+}
+```
+
+**Security:**
+- Each webhook gets a unique 64-character hex signing secret
+- Payloads are signed with HMAC-SHA256 and sent in the `X-Webhook-Signature` header
+- The `X-Webhook-Event` and `X-Webhook-Delivery-Id` headers identify the event and delivery
+- Verify signatures on the receiving end: `HMAC-SHA256(secret, JSON.stringify(payload))`
+
+**Delivery Tracking:**
+- Every delivery attempt is logged with HTTP response status, response body, attempt count, and status (pending/success/failed/retrying)
+- 10-second timeout per delivery
+- Delivery history is viewable per webhook in the admin panel
+
+**Admin Endpoints:**
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /admin/webhooks` | List webhooks (paginated, searchable, filterable by event) |
+| `GET /admin/webhooks/events` | Get available event types |
+| `GET /admin/webhooks/stats` | Get delivery statistics |
+| `GET /admin/webhooks/:id` | Get webhook details |
+| `POST /admin/webhooks` | Create webhook |
+| `PUT /admin/webhooks/:id` | Update webhook |
+| `DELETE /admin/webhooks/:id` | Delete webhook |
+| `GET /admin/webhooks/:id/deliveries` | Get delivery history for a webhook |
+
+**Admin UI:**
+- `/admin/webhooks` — List, create, toggle, and delete webhooks; select subscribed events with multi-select
+- `/admin/webhooks/:id` — View webhook details, signing secret (with copy), subscribed events, and delivery history with status filtering
 
 ## API Documentation
 

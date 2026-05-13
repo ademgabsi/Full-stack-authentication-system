@@ -5,7 +5,9 @@ import { Request } from 'express';
 import { UsersService } from '../users/users.service';
 import { User } from '../../entities/user.entity';
 import { AuditLog } from '../../entities/audit-log.entity';
+import { WebhookEvent } from '../../entities/webhook.entity';
 import { AuditLogService } from '../audit/audit.service';
+import { WebhookService } from '../webhook/webhook.service';
 import {
   AdminUpdateUserDto,
   ListUsersQueryDto,
@@ -24,6 +26,7 @@ export class AdminService {
     private auditLogRepository: Repository<AuditLog>,
     private configService: AppConfigService,
     private auditLogService: AuditLogService,
+    private webhookService: WebhookService,
   ) {}
 
   async listUsers(query: ListUsersQueryDto) {
@@ -67,6 +70,14 @@ export class AdminService {
         metadata: { oldRole: user.role, newRole: dto.role },
         req,
       });
+      this.webhookService
+        .dispatchEvent(WebhookEvent.USER_ROLE_CHANGED, {
+          userId: id,
+          oldRole: user.role,
+          newRole: dto.role,
+          changedBy: adminId,
+        })
+        .catch(() => {});
     }
 
     await this.auditLogService.log({
@@ -93,6 +104,12 @@ export class AdminService {
         resource: `user:${id}`,
         req,
       });
+      this.webhookService
+        .dispatchEvent(WebhookEvent.USER_LOCKED, {
+          userId: id,
+          lockedBy: adminId,
+        })
+        .catch(() => {});
       return result;
     }
     const result = await this.usersService.unlockUser(id);
@@ -102,6 +119,12 @@ export class AdminService {
       resource: `user:${id}`,
       req,
     });
+    this.webhookService
+      .dispatchEvent(WebhookEvent.USER_UNLOCKED, {
+        userId: id,
+        unlockedBy: adminId,
+      })
+      .catch(() => {});
     return result;
   }
 
@@ -112,8 +135,13 @@ export class AdminService {
       userId: adminId,
       action: 'admin.user.deactivated',
       resource: `user:${id}`,
-      req,
     });
+    this.webhookService
+      .dispatchEvent(WebhookEvent.USER_DEACTIVATED, {
+        userId: id,
+        deactivatedBy: adminId,
+      })
+      .catch(() => {});
     return result;
   }
 

@@ -74,7 +74,9 @@ export class AppConfigService {
   }
 
   get webauthnRpName(): string {
-    return this.configService.get<string>('app.webauthn.rpName') ?? 'Auth System';
+    return (
+      this.configService.get<string>('app.webauthn.rpName') ?? 'Auth System'
+    );
   }
 
   get webauthnRpId(): string {
@@ -82,7 +84,10 @@ export class AppConfigService {
   }
 
   get webauthnOrigin(): string {
-    return this.configService.get<string>('app.webauthn.origin') ?? 'http://localhost:5173';
+    return (
+      this.configService.get<string>('app.webauthn.origin') ??
+      'http://localhost:5173'
+    );
   }
 
   get redisHost(): string {
