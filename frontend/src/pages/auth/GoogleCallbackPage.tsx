@@ -3,6 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useAuthStore } from '@/stores/auth.store';
 import type { AuthUser } from '@/types';
 
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export default function GoogleCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -14,9 +19,9 @@ export default function GoogleCallbackPage() {
     const accessToken = searchParams.get('accessToken');
     const userParam = searchParams.get('user');
     const mfaRequired = searchParams.get('mfaRequired');
-    const tempToken = searchParams.get('tempToken');
+    const tempToken = getCookie('mfa_temp_token');
     const stepUpRequired = searchParams.get('stepUpRequired');
-    const stepUpToken = searchParams.get('stepUpToken');
+    const stepUpToken = getCookie('step_up_token');
 
     if (mfaRequired === 'true' && tempToken) {
       setTempToken(tempToken);

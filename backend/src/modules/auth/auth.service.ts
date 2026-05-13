@@ -102,28 +102,25 @@ export class AuthService {
     return req.ip || 'Unknown';
   }
 
-  private parseBrowser(req?: Request): string {
-    if (!req) return 'Unknown';
+  private parseUA(req?: Request): {
+    browser: string;
+    os: string;
+    deviceType: string;
+  } {
+    const defaults = {
+      browser: 'Unknown',
+      os: 'Unknown',
+      deviceType: 'desktop',
+    };
+    if (!req) return defaults;
     const ua = req.headers['user-agent'];
-    if (!ua) return 'Unknown';
+    if (!ua) return defaults;
     const result = new UAParser(ua).getResult();
-    return result.browser.name || 'Unknown';
-  }
-
-  private parseOS(req?: Request): string {
-    if (!req) return 'Unknown';
-    const ua = req.headers['user-agent'];
-    if (!ua) return 'Unknown';
-    const result = new UAParser(ua).getResult();
-    return result.os.name || 'Unknown';
-  }
-
-  private parseDeviceType(req?: Request): string {
-    if (!req) return 'Unknown';
-    const ua = req.headers['user-agent'];
-    if (!ua) return 'Unknown';
-    const result = new UAParser(ua).getResult();
-    return result.device.type || 'desktop';
+    return {
+      browser: result.browser.name || 'Unknown',
+      os: result.os.name || 'Unknown',
+      deviceType: result.device.type || 'desktop',
+    };
   }
 
   private async checkAnomaliesAndStepUp(
@@ -147,13 +144,14 @@ export class AuthService {
     const ip = this.getIpAddress(req);
     const geo = geoip.lookup(ip);
 
+    const uaInfo = this.parseUA(req);
     const { fingerprint, isNew } =
       await this.deviceFingerprintService.getOrCreateFingerprint({
         userId: user.id,
         fingerprintHash,
-        browser: this.parseBrowser(req),
-        os: this.parseOS(req),
-        deviceType: this.parseDeviceType(req),
+        browser: uaInfo.browser,
+        os: uaInfo.os,
+        deviceType: uaInfo.deviceType,
         ipAddress: ip,
         countryCode: geo?.country,
         city: geo?.city,

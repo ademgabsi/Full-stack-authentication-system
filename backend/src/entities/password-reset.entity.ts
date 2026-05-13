@@ -26,7 +26,7 @@ export class PasswordReset {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ type: 'timestamp', name: 'expires_at' })
+  @Column({ type: 'datetime', name: 'expires_at' })
   expiresAt: Date;
 
   @Column({ type: 'boolean', default: false })
