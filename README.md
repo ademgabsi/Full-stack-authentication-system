@@ -20,12 +20,13 @@ A full-stack authentication system with multi-factor authentication, role-based 
 - Google OAuth social login with automatic account linking
 - Passkeys / WebAuthn passwordless login and registration using biometrics or hardware keys
 - Webhooks & event system — notify external services on 12 auth events (user.registered, user.locked, mfa.enabled, etc.) with HMAC-SHA256 signed payloads, delivery tracking, and admin management UI
+- **Device fingerprinting & anomaly detection** — combined server-side and client-side fingerprinting with risk-based step-up challenges for unusual activity (new device, new location, impossible travel)
 
 ## Tech Stack
 
 | Layer | Technologies |
 | --- | --- |
-| Backend | NestJS, TypeORM, PostgreSQL, Redis, Passport, JWT, Nodemailer, Cloudinary, Cloudflare Turnstile, Google OAuth, SimpleWebAuthn |
+| Backend | NestJS, TypeORM, PostgreSQL, Redis, Passport, JWT, Nodemailer, Cloudinary, Cloudflare Turnstile, Google OAuth, SimpleWebAuthn, geoip-lite |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, Zustand, React Query, React Hook Form + Zod |
 
 ## Project Structure
@@ -37,7 +38,7 @@ auth-system/
 │   │   ├── common/   # Guards, decorators, filters, interceptors, validators, storage
 │   │   ├── config/   # App configuration service
 │   │   ├── entities/ # TypeORM entities
-│   │   ├── modules/  # Feature modules (auth, users, admin, email, cloudinary, audit, captcha, webhook)
+│   │   ├── modules/  # Feature modules (auth, users, admin, email, cloudinary, audit, captcha, webhook, device-fingerprint)
 │   │   └── seed/     # Database seed scripts
 │   └── test/         # E2E tests
 ├── frontend/         # React SPA
@@ -120,6 +121,7 @@ Sensitive auth endpoints override these defaults with stricter limits:
 | `POST /auth/resend-verification` | 60s | 3 |
 | `POST /auth/mfa/verify` | 60s | 10 |
 | `POST /auth/mfa/verify-backup` | 60s | 10 |
+| `POST /auth/step-up/verify` | 60s | 5 |
 | `POST /auth/webauthn/login/*` | 60s | 10 |
 
 - **Redis storage**: Uses an atomic Lua script for increment + TTL in a single round-trip (no race conditions)
@@ -146,6 +148,7 @@ Logged actions include:
 | Auth | `auth.login`, `auth.login.failed`, `auth.login.google`, `auth.login.webauthn`, `auth.webauthn.register`, `auth.webauthn.credential_deleted`, `auth.logout`, `auth.register`, `auth.refresh`, `auth.session.revoked`, `auth.session.revoked_all` |
 | Password | `auth.password.change`, `auth.password.reset` |
 | MFA | `auth.mfa.enabled`, `auth.mfa.disabled`, `auth.mfa.verified` |
+| Step-Up | `auth.step_up.completed` |
 | Email | `auth.email.verified` |
 | Admin | `admin.user.locked`, `admin.user.unlocked`, `admin.user.deactivated`, `admin.user.role-changed`, `admin.user.updated` |
 
@@ -211,6 +214,69 @@ Users can register and authenticate with passkeys (biometrics, hardware security
 - **Discoverable credentials**: Passkeys work without typing an email first — the browser shows an account picker
 - **Security**: Uses the [SimpleWebAuthn](https://simplewebauthn.dev/) library with k-anonymity; credentials are scoped to your Relying Party ID
 - **Setup**: Set `WEBAUTHN_RP_NAME`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_ORIGIN` in your `.env` (defaults work for `localhost`)
+
+### Device Fingerprinting & Anomaly Detection
+
+The system implements a defense-in-depth approach to detecting suspicious login activity by combining **server-side** signals (IP address, user-agent, accept-language, accept-encoding) with **client-side** signals (screen resolution, timezone, canvas/WebGL/fonts hashes, color depth, touch support) into a single SHA-256 device fingerprint. Each login is evaluated against the user's historical fingerprints, and anomalies trigger a **step-up challenge** rather than outright blocking.
+
+**Fingerprint Signals:**
+
+| Source | Signals |
+| --- | --- |
+| Server | IP address, user-agent, accept-language, accept-encoding |
+| Client | Screen resolution, timezone, language, platform, canvas hash, WebGL hash, fonts hash, color depth, touch support |
+
+**Anomaly Types Detected:**
+
+| Anomaly | Trigger | Risk Score |
+| --- | --- | --- |
+| `new_device` | Fingerprint hash never seen for this user | +0.3 |
+| `new_ip` | IP address not previously associated with user | +0.2 |
+| `new_location` | Country code not seen in any prior fingerprint | +0.3 |
+| `impossible_travel` | Login from a location that would require >900 km/h travel speed since last session | +0.9 |
+
+**Risk-Based Step-Up Logic:**
+- Combined risk score is calculated from all triggered anomalies (capped at 1.0)
+- If risk score ≥ 0.5 **or** impossible travel is detected → step-up challenge is issued
+- Users **with MFA enabled** → existing MFA flow serves as the step-up (TOTP or backup code)
+- Users **without MFA** → a 6-digit email OTP is sent with a 10-minute expiry; verified via `POST /auth/step-up/verify`
+- All anomalies are logged with risk scores, details, and step-up completion status
+
+**Flow:**
+
+```
+Login → Password verified → Fingerprint checked
+                                    ↓
+                    ┌───────────────┴───────────────┐
+                    ↓                               ↓
+              Known device                    Anomaly detected
+                    ↓                               ↓
+              Issue tokens                Step-up challenge
+                    ↓                      (MFA or email OTP)
+              Login success                      ↓
+                                    Verify challenge → Issue tokens
+```
+
+**Admin Endpoints:**
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /admin/anomalies` | List all anomaly logs (paginated, filterable by type/user) |
+| `GET /admin/users/:id/fingerprints` | Get device fingerprints for a user |
+| `GET /admin/users/:id/anomalies` | Get anomaly logs for a user |
+| `POST /admin/fingerprints/:id/trust` | Mark a fingerprint as trusted (skips anomaly checks) |
+| `POST /admin/fingerprints/:id/revoke` | Revoke a fingerprint (blocks future logins from it) |
+
+**User Endpoints:**
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /device-fingerprints` | List my own device fingerprints |
+
+**Frontend Integration:**
+- `lib/fingerprint.ts` collects client-side signals and attaches them to every login request
+- `StepUpVerifyPage` handles email OTP verification when a step-up is triggered
+- `GoogleCallbackPage` handles MFA and step-up redirects from OAuth flows
 
 ### Webhooks & Event System
 
