@@ -1,12 +1,13 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { randomUUID, randomInt, createHash, timingSafeEqual } from 'crypto';
+import { randomUUID, randomInt, createHmac, timingSafeEqual } from 'crypto';
 import {
   StepUpChallenge,
   StepUpType,
 } from '../../entities/step-up-challenge.entity';
 import { EmailService } from '../email/email.service';
+import { AppConfigService } from '../../config/app-config.service';
 
 @Injectable()
 export class StepUpChallengeService {
@@ -16,7 +17,14 @@ export class StepUpChallengeService {
     @InjectRepository(StepUpChallenge)
     private challengeRepo: Repository<StepUpChallenge>,
     private emailService: EmailService,
+    private configService: AppConfigService,
   ) {}
+
+  private hashCode(code: string): string {
+    return createHmac('sha256', this.configService.jwtSecret)
+      .update(code)
+      .digest('hex');
+  }
 
   async createEmailChallenge(
     userId: string,
@@ -24,9 +32,11 @@ export class StepUpChallengeService {
   ): Promise<{ stepUpToken: string }> {
     const code = String(randomInt(100000, 1000000));
     const token = randomUUID();
-    const tokenHash = createHash('sha256').update(token).digest('hex');
-    const codeHash = createHash('sha256').update(code).digest('hex');
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const tokenHash = createHmac('sha256', this.configService.jwtSecret)
+      .update(token)
+      .digest('hex');
+    const codeHash = this.hashCode(code);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await this.challengeRepo.save(
       this.challengeRepo.create({
@@ -49,7 +59,9 @@ export class StepUpChallengeService {
     token: string,
     code: string,
   ): Promise<{ userId: string }> {
-    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const tokenHash = createHmac('sha256', this.configService.jwtSecret)
+      .update(token)
+      .digest('hex');
     const challenge = await this.challengeRepo.findOne({
       where: { tokenHash },
     });
@@ -65,7 +77,7 @@ export class StepUpChallengeService {
     if (challenge.expiresAt < new Date()) {
       throw new UnauthorizedException('Step-up challenge has expired');
     }
-    const codeHash = createHash('sha256').update(code).digest('hex');
+    const codeHash = this.hashCode(code);
     const codeBuffer = Buffer.from(challenge.code, 'hex');
     const inputBuffer = Buffer.from(codeHash, 'hex');
     if (

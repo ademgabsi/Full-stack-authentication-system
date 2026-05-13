@@ -37,7 +37,7 @@ export class Webhook {
   @Column({ type: 'varchar', length: 64 })
   secret: string;
 
-  @Column({ type: 'simple-json' })
+  @Column({ type: 'simple-json', default: '[]' })
   events: WebhookEvent[];
 
   @Column({ type: 'boolean', default: true, name: 'is_active' })

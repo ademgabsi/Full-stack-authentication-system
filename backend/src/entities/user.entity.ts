@@ -54,7 +54,7 @@ export class User {
   @Column({ type: 'integer', name: 'failed_attempts', default: 0 })
   failedAttempts: number;
 
-  @Column({ type: 'datetime', name: 'locked_until', nullable: true })
+  @Column({ type: 'timestamp', name: 'locked_until', nullable: true })
   lockedUntil: Date;
 
   @Column({ type: 'boolean', name: 'is_active', default: true })
@@ -66,7 +66,7 @@ export class User {
   @Column({ type: 'boolean', name: 'passkeys_enabled', default: false })
   passkeysEnabled: boolean;
 
-  @Column({ type: 'datetime', name: 'last_login', nullable: true })
+  @Column({ type: 'timestamp', name: 'last_login', nullable: true })
   lastLogin: Date;
 
   @CreateDateColumn({ name: 'created_at' })

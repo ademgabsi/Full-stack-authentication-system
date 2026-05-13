@@ -60,17 +60,17 @@ export interface LoginRequest {
 }
 
 export interface StepUpVerifyRequest {
-  stepUpToken: string;
+  stepUpToken?: string;
   code: string;
 }
 
 export interface MfaVerifyRequest {
-  tempToken: string;
+  tempToken?: string;
   totpCode: string;
 }
 
 export interface MfaBackupCodeVerifyRequest {
-  tempToken: string;
+  tempToken?: string;
   backupCode: string;
 }
 

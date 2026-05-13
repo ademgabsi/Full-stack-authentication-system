@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { createHash } from 'crypto';
+import { createHmac } from 'crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { StepUpChallengeService } from './step-up-challenge.service';
 import {
@@ -9,6 +9,9 @@ import {
   StepUpType,
 } from '../../entities/step-up-challenge.entity';
 import { EmailService } from '../email/email.service';
+import { AppConfigService } from '../../config/app-config.service';
+
+const TEST_JWT_SECRET = 'test-jwt-secret';
 
 describe('StepUpChallengeService', () => {
   let service: StepUpChallengeService;
@@ -28,6 +31,10 @@ describe('StepUpChallengeService', () => {
     sendStepUpChallengeEmail: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockConfigService = {
+    jwtSecret: TEST_JWT_SECRET,
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -39,6 +46,10 @@ describe('StepUpChallengeService', () => {
         {
           provide: EmailService,
           useValue: mockEmailService,
+        },
+        {
+          provide: AppConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();
@@ -59,13 +70,12 @@ describe('StepUpChallengeService', () => {
       );
 
       expect(result.stepUpToken).toBeDefined();
-      expect(result.stepUpToken).toHaveLength(36); // UUID format
+      expect(result.stepUpToken).toHaveLength(36);
       expect(mockRepo.save).toHaveBeenCalled();
       const savedCall = mockRepo.save.mock.calls[0][0];
       expect(savedCall.type).toBe(StepUpType.EMAIL_OTP);
-      expect(savedCall.code).toHaveLength(64); // sha256 hex
+      expect(savedCall.code).toHaveLength(64);
       expect(savedCall.used).toBe(false);
-      // The stored code is hashed, but the email receives the plaintext
       expect(mockEmailService.sendStepUpChallengeEmail).toHaveBeenCalledWith(
         'test@example.com',
         expect.stringMatching(/^\d{6}$/),
@@ -84,8 +94,12 @@ describe('StepUpChallengeService', () => {
     it('should verify valid challenge', async () => {
       const token = 'valid-token-uuid';
       const code = '123456';
-      const tokenHash = createHash('sha256').update(token).digest('hex');
-      const codeHash = createHash('sha256').update(code).digest('hex');
+      const tokenHash = createHmac('sha256', TEST_JWT_SECRET)
+        .update(token)
+        .digest('hex');
+      const codeHash = createHmac('sha256', TEST_JWT_SECRET)
+        .update(code)
+        .digest('hex');
 
       mockRepo.findOne.mockResolvedValue({
         id: 'challenge-1',
@@ -113,7 +127,9 @@ describe('StepUpChallengeService', () => {
     });
 
     it('should throw for already used challenge', async () => {
-      const codeHash = createHash('sha256').update('123456').digest('hex');
+      const codeHash = createHmac('sha256', TEST_JWT_SECRET)
+        .update('123456')
+        .digest('hex');
 
       mockRepo.findOne.mockResolvedValue({
         id: 'challenge-1',
@@ -129,7 +145,9 @@ describe('StepUpChallengeService', () => {
     });
 
     it('should throw for expired challenge', async () => {
-      const codeHash = createHash('sha256').update('123456').digest('hex');
+      const codeHash = createHmac('sha256', TEST_JWT_SECRET)
+        .update('123456')
+        .digest('hex');
 
       mockRepo.findOne.mockResolvedValue({
         id: 'challenge-1',
@@ -145,7 +163,9 @@ describe('StepUpChallengeService', () => {
     });
 
     it('should throw for wrong code', async () => {
-      const codeHash = createHash('sha256').update('123456').digest('hex');
+      const codeHash = createHmac('sha256', TEST_JWT_SECRET)
+        .update('123456')
+        .digest('hex');
 
       mockRepo.findOne.mockResolvedValue({
         id: 'challenge-1',

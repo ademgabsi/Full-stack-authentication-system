@@ -41,18 +41,6 @@ export default function MfaVerifyPage() {
 
   const { mutate: verifyBackup, isPending: backupPending } = useVerifyMfaBackup();
 
-  if (!tempToken) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Session Expired</h2>
-          <p className="text-gray-500 mb-6">Your MFA session has expired. Please log in again.</p>
-          <Link to="/login">
-            <Button>Back to Login</Button>
-          </Link>
-        </div>
-    );
-  }
-
   const activeError = mfaError;
 
   return (
@@ -70,7 +58,7 @@ export default function MfaVerifyPage() {
 
         {!useBackup ? (
           <form
-            onSubmit={handleSubmit((data) => verifyMfa({ totpCode: data.totpCode }))}
+            onSubmit={handleSubmit((data) => verifyMfa({ totpCode: data.totpCode, ...(tempToken ? { tempToken } : {}) }))}
             className="space-y-4"
           >
             <Input

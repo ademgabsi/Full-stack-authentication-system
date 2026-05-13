@@ -26,7 +26,7 @@ export class EmailVerificationToken {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ type: 'datetime', name: 'expires_at' })
+  @Column({ type: 'timestamp', name: 'expires_at' })
   expiresAt: Date;
 
   @CreateDateColumn({ name: 'created_at' })

@@ -3,34 +3,23 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useAuthStore } from '@/stores/auth.store';
 import type { AuthUser } from '@/types';
 
-function getCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
 export default function GoogleCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const setTempToken = useAuthStore((s) => s.setTempToken);
-  const setStepUpToken = useAuthStore((s) => s.setStepUpToken);
 
   useEffect(() => {
     const accessToken = searchParams.get('accessToken');
     const userParam = searchParams.get('user');
     const mfaRequired = searchParams.get('mfaRequired');
-    const tempToken = getCookie('mfa_temp_token');
     const stepUpRequired = searchParams.get('stepUpRequired');
-    const stepUpToken = getCookie('step_up_token');
 
-    if (mfaRequired === 'true' && tempToken) {
-      setTempToken(tempToken);
+    if (mfaRequired === 'true') {
       navigate('/mfa/verify', { replace: true });
       return;
     }
 
-    if (stepUpRequired === 'true' && stepUpToken) {
-      setStepUpToken(stepUpToken);
+    if (stepUpRequired === 'true') {
       navigate('/step-up/verify', { replace: true });
       return;
     }
@@ -47,7 +36,7 @@ export default function GoogleCallbackPage() {
     } catch {
       navigate('/login', { replace: true });
     }
-  }, [searchParams, navigate, login, setTempToken, setStepUpToken]);
+  }, [searchParams, navigate, login]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
