@@ -52,15 +52,18 @@ export function useVerifyMfa() {
 export function useVerifyStepUp() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const clearStepUpToken = () => useAuthStore.setState({ stepUpToken: null });
 
   return useMutation({
     mutationFn: (data: StepUpVerifyRequest) => authApi.verifyStepUp(data),
     onSuccess: (response) => {
       const { accessToken, user } = response;
+      clearStepUpToken();
       login(accessToken, user);
       navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
     },
     onError: (error: AxiosError) => {
+      clearStepUpToken();
       if (error.response?.status === 401) {
         navigate('/login', { replace: true });
       }

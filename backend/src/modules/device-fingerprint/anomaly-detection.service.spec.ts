@@ -74,9 +74,7 @@ describe('AnomalyDetectionService', () => {
         userId: 'user-1',
         ipAddress: '203.0.113.1',
       });
-      mockFingerprintRepo.find.mockResolvedValueOnce([
-        { countryCode: 'US' },
-      ]);
+      mockFingerprintRepo.find.mockResolvedValueOnce([{ countryCode: 'US' }]);
       mockRefreshTokenRepo.findOne.mockResolvedValueOnce({
         ipAddress: '203.0.113.1',
         lastUsedAt: new Date(),
@@ -103,9 +101,7 @@ describe('AnomalyDetectionService', () => {
 
     it('should detect new device anomaly', async () => {
       mockFingerprintRepo.findOne.mockResolvedValueOnce(null);
-      mockFingerprintRepo.find.mockResolvedValueOnce([
-        { countryCode: 'US' },
-      ]);
+      mockFingerprintRepo.find.mockResolvedValueOnce([{ countryCode: 'US' }]);
       mockRefreshTokenRepo.findOne.mockResolvedValueOnce({
         ipAddress: '203.0.113.1',
         lastUsedAt: new Date(),
@@ -216,8 +212,10 @@ describe('AnomalyDetectionService', () => {
     it('should calculate correct distance between two points', () => {
       // Distance between New York and London should be ~5570 km
       const distance = (service as any).haversineDistance(
-        40.7128, -74.0060, // NYC
-        51.5074, -0.1278,  // London
+        40.7128,
+        -74.006, // NYC
+        51.5074,
+        -0.1278, // London
       );
       expect(distance).toBeGreaterThan(5500);
       expect(distance).toBeLessThan(5600);
@@ -225,8 +223,10 @@ describe('AnomalyDetectionService', () => {
 
     it('should return 0 for same coordinates', () => {
       const distance = (service as any).haversineDistance(
-        40.7128, -74.0060,
-        40.7128, -74.0060,
+        40.7128,
+        -74.006,
+        40.7128,
+        -74.006,
       );
       expect(distance).toBe(0);
     });

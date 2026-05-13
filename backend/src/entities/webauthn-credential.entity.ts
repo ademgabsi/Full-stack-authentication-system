@@ -37,7 +37,7 @@ export class WebAuthnCredential {
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @Column({ name: 'last_used_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'last_used_at', type: 'datetime', nullable: true })
   lastUsedAt: Date;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

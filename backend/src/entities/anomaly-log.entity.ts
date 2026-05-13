@@ -30,19 +30,17 @@ export class AnomalyLog {
   @Column({ type: 'varchar', length: 50 })
   action: string;
 
-  @Column({ type: 'enum', enum: AnomalyType, name: 'anomaly_type' })
+  @Column({ type: 'varchar', length: 30, name: 'anomaly_type' })
   anomalyType: AnomalyType;
 
   @Column({
-    type: 'decimal',
-    precision: 3,
-    scale: 2,
+    type: 'float',
     default: 0.0,
     name: 'risk_score',
   })
   riskScore: number;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'simple-json', nullable: true })
   details: Record<string, any>;
 
   @Column({ type: 'varchar', length: 45, nullable: true, name: 'ip_address' })

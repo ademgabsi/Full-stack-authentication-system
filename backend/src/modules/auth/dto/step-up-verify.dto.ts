@@ -1,12 +1,13 @@
-import { IsString } from 'class-validator';
+import { IsUUID, Length, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class StepUpVerifyDto {
   @ApiProperty()
-  @IsString()
+  @IsUUID()
   stepUpToken: string;
 
   @ApiProperty()
-  @IsString()
+  @Length(6, 6)
+  @Matches(/^\d{6}$/)
   code: string;
 }

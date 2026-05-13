@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
 import { DeviceFingerprint } from '../../entities/device-fingerprint.entity';
 import { AnomalyLog } from '../../entities/anomaly-log.entity';
 import { StepUpChallenge } from '../../entities/step-up-challenge.entity';
@@ -10,7 +9,6 @@ import { AnomalyDetectionService } from './anomaly-detection.service';
 import { StepUpChallengeService } from './step-up-challenge.service';
 import { DeviceFingerprintController } from './device-fingerprint.controller';
 import { EmailModule } from '../email/email.module';
-import { AppConfigModule } from '../../config/config.module';
 
 @Module({
   imports: [
@@ -20,9 +18,7 @@ import { AppConfigModule } from '../../config/config.module';
       StepUpChallenge,
       RefreshToken,
     ]),
-    JwtModule.register({}),
     EmailModule,
-    AppConfigModule,
   ],
   controllers: [DeviceFingerprintController],
   providers: [

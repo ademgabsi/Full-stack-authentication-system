@@ -1,14 +1,4 @@
-export interface FingerprintData {
-  screenResolution?: string;
-  timezone?: string;
-  language?: string;
-  platform?: string;
-  canvasHash?: string;
-  webglHash?: string;
-  fontsHash?: string;
-  colorDepth?: string;
-  touchSupport?: string;
-}
+import type { FingerprintData } from '@/types';
 
 function hashString(str: string): string {
   let hash = 0;

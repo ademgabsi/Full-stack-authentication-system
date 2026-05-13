@@ -33,7 +33,7 @@ export class User {
   @Column({ type: 'varchar', name: 'provider_id', length: 255, nullable: true })
   providerId: string;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  @Column({ type: 'varchar', length: 10, default: UserRole.USER })
   role: UserRole;
 
   @Column({ type: 'varchar', name: 'full_name', length: 255 })
@@ -48,13 +48,13 @@ export class User {
   @Column({ type: 'varchar', name: 'mfa_secret', nullable: true, length: 255 })
   mfaSecret: string;
 
-  @Column({ type: 'jsonb', name: 'mfa_backup_codes', nullable: true })
+  @Column({ type: 'simple-json', name: 'mfa_backup_codes', nullable: true })
   mfaBackupCodes: string[];
 
   @Column({ type: 'integer', name: 'failed_attempts', default: 0 })
   failedAttempts: number;
 
-  @Column({ type: 'timestamp', name: 'locked_until', nullable: true })
+  @Column({ type: 'datetime', name: 'locked_until', nullable: true })
   lockedUntil: Date;
 
   @Column({ type: 'boolean', name: 'is_active', default: true })
@@ -66,7 +66,7 @@ export class User {
   @Column({ type: 'boolean', name: 'passkeys_enabled', default: false })
   passkeysEnabled: boolean;
 
-  @Column({ type: 'timestamp', name: 'last_login', nullable: true })
+  @Column({ type: 'datetime', name: 'last_login', nullable: true })
   lastLogin: Date;
 
   @CreateDateColumn({ name: 'created_at' })

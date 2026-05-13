@@ -52,14 +52,14 @@ export class DeviceFingerprint {
   city: string;
 
   @Column({
-    type: 'timestamp',
+    type: 'datetime',
     name: 'first_seen_at',
     default: () => 'CURRENT_TIMESTAMP',
   })
   firstSeenAt: Date;
 
   @Column({
-    type: 'timestamp',
+    type: 'datetime',
     name: 'last_seen_at',
     default: () => 'CURRENT_TIMESTAMP',
   })

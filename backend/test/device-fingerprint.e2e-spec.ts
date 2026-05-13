@@ -4,15 +4,29 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { AppModule } from '../../src/app.module';
-import { User, UserRole } from '../../src/entities/user.entity';
-import { DeviceFingerprint } from '../../src/entities/device-fingerprint.entity';
-import { AnomalyLog } from '../../src/entities/anomaly-log.entity';
-import { StepUpChallenge } from '../../src/entities/step-up-challenge.entity';
-import { RefreshToken } from '../../src/entities/refresh-token.entity';
+import { User, UserRole } from '../src/entities/user.entity';
+import { DeviceFingerprint } from '../src/entities/device-fingerprint.entity';
+import { AnomalyLog } from '../src/entities/anomaly-log.entity';
+import { StepUpChallenge } from '../src/entities/step-up-challenge.entity';
+import { RefreshToken } from '../src/entities/refresh-token.entity';
+import { AuthModule } from '../src/modules/auth/auth.module';
+import { AdminModule } from '../src/modules/admin/admin.module';
+import { UsersModule } from '../src/modules/users/users.module';
+import { AuditModule } from '../src/modules/audit/audit.module';
+import { CaptchaModule } from '../src/modules/captcha/captcha.module';
+import { BreachPasswordModule } from '../src/modules/auth/breach-password.module';
+import { WebhookModule } from '../src/modules/webhook/webhook.module';
+import { DeviceFingerprintModule } from '../src/modules/device-fingerprint/device-fingerprint.module';
+import { AppConfigModule } from '../src/config/config.module';
+import { MailerService } from '@nestjs-modules/mailer';
+import { CaptchaService } from '../src/modules/captcha/captcha.service';
 
 describe('Device Fingerprint & Anomaly Detection (e2e)', () => {
+  jest.setTimeout(30000);
+
   let app: INestApplication<App>;
   let dataSource: DataSource;
   let testUser: User;
@@ -23,18 +37,27 @@ describe('Device Fingerprint & Anomaly Detection (e2e)', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [
-            User,
-            DeviceFingerprint,
-            AnomalyLog,
-            StepUpChallenge,
-            RefreshToken,
-          ],
+          autoLoadEntities: true,
           synchronize: true,
         }),
-        AppModule,
+        AppConfigModule,
+        PassportModule,
+        JwtModule.register({}),
+        CaptchaModule,
+        BreachPasswordModule,
+        AuditModule,
+        WebhookModule,
+        DeviceFingerprintModule,
+        AuthModule,
+        UsersModule,
+        AdminModule,
       ],
-    }).compile();
+    })
+      .overrideProvider(MailerService)
+      .useValue({ sendMail: () => ({}) } as any)
+      .overrideProvider(CaptchaService)
+      .useValue({ verify: () => true } as any)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -59,10 +82,10 @@ describe('Device Fingerprint & Anomaly Detection (e2e)', () => {
 
   beforeEach(async () => {
     // Clean up fingerprint/anomaly data between tests
-    await dataSource.getRepository(DeviceFingerprint).delete({});
-    await dataSource.getRepository(AnomalyLog).delete({});
-    await dataSource.getRepository(StepUpChallenge).delete({});
-    await dataSource.getRepository(RefreshToken).delete({});
+    await dataSource.getRepository(DeviceFingerprint).clear();
+    await dataSource.getRepository(AnomalyLog).clear();
+    await dataSource.getRepository(StepUpChallenge).clear();
+    await dataSource.getRepository(RefreshToken).clear();
   });
 
   describe('POST /auth/login', () => {
@@ -139,7 +162,7 @@ describe('Device Fingerprint & Anomaly Detection (e2e)', () => {
 
     beforeAll(async () => {
       const userRepo = dataSource.getRepository(User);
-      const admin = await userRepo.save({
+      await userRepo.save({
         email: 'admin@example.com',
         passwordHash: await bcrypt.hash('AdminPass123!', 10),
         fullName: 'Admin User',
@@ -155,7 +178,7 @@ describe('Device Fingerprint & Anomaly Detection (e2e)', () => {
           password: 'AdminPass123!',
         });
 
-      adminToken = loginRes.body.accessToken;
+      adminToken = (loginRes.body as { accessToken: string }).accessToken;
     });
 
     it('should list anomalies (admin only)', async () => {

@@ -75,21 +75,39 @@ export class AuthController {
       : this.configService.url;
 
     if ('mfaRequired' in result && result.mfaRequired) {
-      const params = new URLSearchParams();
-      params.append('mfaRequired', 'true');
-      params.append('tempToken', result.tempToken!);
-      return res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
+      res.cookie('mfa_temp_token', result.tempToken!, {
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 5 * 60 * 1000,
+      });
+      return res.redirect(
+        `${frontendUrl}/auth/google/callback?mfaRequired=true`,
+      );
     }
 
     if ('stepUpRequired' in result && result.stepUpRequired) {
-      const params = new URLSearchParams();
-      params.append('stepUpRequired', 'true');
-      params.append('stepUpToken', result.stepUpToken!);
-      return res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
+      res.cookie('step_up_token', result.stepUpToken!, {
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 10 * 60 * 1000,
+      });
+      return res.redirect(
+        `${frontendUrl}/auth/google/callback?stepUpRequired=true`,
+      );
     }
 
-    const tokenResult = result as { accessToken: string; refreshToken: string; user: any };
-    res.cookie('refresh_token', tokenResult.refreshToken, REFRESH_COOKIE_OPTIONS);
+    const tokenResult = result as {
+      accessToken: string;
+      refreshToken: string;
+      user: any;
+    };
+    res.cookie(
+      'refresh_token',
+      tokenResult.refreshToken,
+      REFRESH_COOKIE_OPTIONS,
+    );
     const params = new URLSearchParams({
       accessToken: tokenResult.accessToken,
       user: JSON.stringify(tokenResult.user),

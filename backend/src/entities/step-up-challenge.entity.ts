@@ -24,19 +24,19 @@ export class StepUpChallenge {
   @Column({ type: 'varchar', length: 64, name: 'token_hash' })
   tokenHash: string;
 
-  @Column({ type: 'varchar', length: 10 })
+  @Column({ type: 'varchar', length: 64 })
   code: string;
 
-  @Column({ type: 'enum', enum: StepUpType })
+  @Column({ type: 'varchar', length: 20 })
   type: StepUpType;
 
-  @Column({ type: 'timestamp', name: 'expires_at' })
+  @Column({ type: 'datetime', name: 'expires_at' })
   expiresAt: Date;
 
   @Column({ type: 'boolean', default: false })
   used: boolean;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'simple-json', nullable: true })
   metadata: Record<string, any>;
 
   @CreateDateColumn({ name: 'created_at' })

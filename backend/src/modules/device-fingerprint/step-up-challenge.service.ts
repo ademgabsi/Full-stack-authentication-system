@@ -1,14 +1,12 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { JwtService } from '@nestjs/jwt';
-import { randomUUID, randomInt, createHash } from 'crypto';
+import { randomUUID, randomInt, createHash, timingSafeEqual } from 'crypto';
 import {
   StepUpChallenge,
   StepUpType,
 } from '../../entities/step-up-challenge.entity';
 import { EmailService } from '../email/email.service';
-import { AppConfigService } from '../../config/app-config.service';
 
 @Injectable()
 export class StepUpChallengeService {
@@ -18,8 +16,6 @@ export class StepUpChallengeService {
     @InjectRepository(StepUpChallenge)
     private challengeRepo: Repository<StepUpChallenge>,
     private emailService: EmailService,
-    private jwtService: JwtService,
-    private configService: AppConfigService,
   ) {}
 
   async createEmailChallenge(
@@ -29,13 +25,14 @@ export class StepUpChallengeService {
     const code = String(randomInt(100000, 1000000));
     const token = randomUUID();
     const tokenHash = createHash('sha256').update(token).digest('hex');
+    const codeHash = createHash('sha256').update(code).digest('hex');
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     await this.challengeRepo.save(
       this.challengeRepo.create({
         userId,
         tokenHash,
-        code,
+        code: codeHash,
         type: StepUpType.EMAIL_OTP,
         expiresAt,
       }),
@@ -68,7 +65,13 @@ export class StepUpChallengeService {
     if (challenge.expiresAt < new Date()) {
       throw new UnauthorizedException('Step-up challenge has expired');
     }
-    if (challenge.code !== code) {
+    const codeHash = createHash('sha256').update(code).digest('hex');
+    const codeBuffer = Buffer.from(challenge.code, 'hex');
+    const inputBuffer = Buffer.from(codeHash, 'hex');
+    if (
+      codeBuffer.length !== inputBuffer.length ||
+      !timingSafeEqual(codeBuffer, inputBuffer)
+    ) {
       throw new UnauthorizedException('Invalid step-up code');
     }
 
