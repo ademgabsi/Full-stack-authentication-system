@@ -1,10 +1,19 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, Length, Matches } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsNotEmpty,
+  Length,
+  Matches,
+  IsOptional,
+} from 'class-validator';
 
 export class MfaVerifyDto {
-  @ApiProperty({ description: 'Temporary token received from login step 1' })
+  @ApiPropertyOptional({
+    description:
+      'Temporary token received from login step 1 (also sent via cookie)',
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   tempToken: string;
 
   @ApiProperty({

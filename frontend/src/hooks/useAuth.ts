@@ -35,7 +35,7 @@ export function useVerifyMfa() {
 
   return useMutation({
     mutationFn: (data: Omit<MfaVerifyRequest, 'tempToken'>) =>
-      authApi.verifyMfa({ ...data, tempToken: tempToken! }),
+      authApi.verifyMfa({ ...data, ...(tempToken ? { tempToken } : {}) }),
     onSuccess: (response) => {
       const { accessToken, user } = response;
       login(accessToken, user);
@@ -78,7 +78,7 @@ export function useVerifyMfaBackup() {
 
   return useMutation({
     mutationFn: (backupCode: string) =>
-      authApi.verifyMfaBackupCode({ tempToken: tempToken!, backupCode }),
+      authApi.verifyMfaBackupCode({ ...(tempToken ? { tempToken } : {}), backupCode }),
     onSuccess: (response) => {
       const { accessToken, user } = response;
       login(accessToken, user);

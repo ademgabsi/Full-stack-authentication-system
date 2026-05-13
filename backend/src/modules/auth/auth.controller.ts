@@ -76,8 +76,9 @@ export class AuthController {
 
     if ('mfaRequired' in result && result.mfaRequired) {
       res.cookie('mfa_temp_token', result.tempToken!, {
+        httpOnly: true,
         sameSite: 'lax',
-        path: '/',
+        path: '/api/auth',
         secure: process.env.NODE_ENV === 'production',
         maxAge: 5 * 60 * 1000,
       });
@@ -88,8 +89,9 @@ export class AuthController {
 
     if ('stepUpRequired' in result && result.stepUpRequired) {
       res.cookie('step_up_token', result.stepUpToken!, {
+        httpOnly: true,
         sameSite: 'lax',
-        path: '/',
+        path: '/api/auth',
         secure: process.env.NODE_ENV === 'production',
         maxAge: 10 * 60 * 1000,
       });
@@ -189,8 +191,16 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.verifyMfa(dto, req);
+    const tempToken = dto.tempToken || req.cookies?.['mfa_temp_token'];
+    if (!tempToken) {
+      throw new HttpException(
+        'Missing temporary token',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    const result = await this.authService.verifyMfa({ ...dto, tempToken }, req);
     res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.clearCookie('mfa_temp_token', { path: '/api/auth' });
     const { refreshToken: _, ...body } = result;
     return body;
   }
@@ -209,8 +219,19 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.verifyMfaBackupCode(dto, req);
+    const tempToken = dto.tempToken || req.cookies?.['mfa_temp_token'];
+    if (!tempToken) {
+      throw new HttpException(
+        'Missing temporary token',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    const result = await this.authService.verifyMfaBackupCode(
+      { ...dto, tempToken },
+      req,
+    );
     res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.clearCookie('mfa_temp_token', { path: '/api/auth' });
     const { refreshToken: _, ...body } = result;
     return body;
   }
@@ -230,8 +251,16 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.verifyStepUp(dto, req);
+    const stepUpToken = dto.stepUpToken || req.cookies?.['step_up_token'];
+    if (!stepUpToken) {
+      throw new HttpException('Missing step-up token', HttpStatus.UNAUTHORIZED);
+    }
+    const result = await this.authService.verifyStepUp(
+      { ...dto, stepUpToken },
+      req,
+    );
     res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.clearCookie('step_up_token', { path: '/api/auth' });
     const { refreshToken: _, ...body } = result;
     return body;
   }

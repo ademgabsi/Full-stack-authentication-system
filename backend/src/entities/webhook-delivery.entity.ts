@@ -29,7 +29,7 @@ export class WebhookDelivery {
   @Column({ type: 'varchar', length: 100 })
   event: string;
 
-  @Column({ type: 'simple-json' })
+  @Column({ type: 'simple-json', default: '{}' })
   payload: object;
 
   @Column({ type: 'integer', nullable: true, name: 'response_status' })
@@ -48,7 +48,7 @@ export class WebhookDelivery {
   @Column({ type: 'integer', default: 0, name: 'attempts' })
   attempts: number;
 
-  @Column({ type: 'datetime', nullable: true, name: 'next_retry_at' })
+  @Column({ type: 'timestamp', nullable: true, name: 'next_retry_at' })
   nextRetryAt: Date;
 
   @CreateDateColumn({ name: 'created_at' })

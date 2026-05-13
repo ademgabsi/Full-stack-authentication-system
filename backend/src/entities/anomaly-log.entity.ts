@@ -30,7 +30,7 @@ export class AnomalyLog {
   @Column({ type: 'varchar', length: 50 })
   action: string;
 
-  @Column({ type: 'varchar', length: 30, name: 'anomaly_type' })
+  @Column({ type: 'varchar', length: 30, name: 'anomaly_type', default: AnomalyType.NEW_DEVICE })
   anomalyType: AnomalyType;
 
   @Column({

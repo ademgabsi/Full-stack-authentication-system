@@ -30,7 +30,7 @@ export class StepUpChallenge {
   @Column({ type: 'varchar', length: 20 })
   type: StepUpType;
 
-  @Column({ type: 'datetime', name: 'expires_at' })
+  @Column({ type: 'timestamp', name: 'expires_at' })
   expiresAt: Date;
 
   @Column({ type: 'boolean', default: false })

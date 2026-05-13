@@ -10,24 +10,10 @@ export default function StepUpVerifyPage() {
   const [code, setCode] = useState('');
   const stepUpToken = useAuthStore((s) => s.stepUpToken);
 
-  if (!stepUpToken) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Session Expired</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          The verification session has expired. Please log in again.
-        </p>
-        <Button onClick={() => navigate('/login', { replace: true })}>
-          Back to Login
-        </Button>
-      </div>
-    );
-  }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim()) return;
-    verifyStepUp({ stepUpToken, code: code.trim() });
+    verifyStepUp({ ...(stepUpToken ? { stepUpToken } : {}), code: code.trim() });
   };
 
   return (
