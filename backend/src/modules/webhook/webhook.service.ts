@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { randomBytes, createHmac } from 'crypto';
+import { randomBytes, createHmac, randomUUID } from 'crypto';
+import { lookup } from 'dns/promises';
+import { isIP } from 'net';
 import { Webhook, WebhookEvent } from '../../entities/webhook.entity';
 import {
   WebhookDelivery,
@@ -32,6 +34,7 @@ export class WebhookService {
 
   async create(dto: CreateWebhookDto): Promise<Webhook> {
     this.validateEvents(dto.events);
+    await this.validateUrl(dto.url);
 
     const secret = randomBytes(32).toString('hex');
     const webhook = this.webhookRepository.create({
@@ -52,6 +55,10 @@ export class WebhookService {
 
     if (dto.events) {
       this.validateEvents(dto.events);
+    }
+
+    if (dto.url) {
+      await this.validateUrl(dto.url);
     }
 
     Object.assign(webhook, {
@@ -171,7 +178,7 @@ export class WebhookService {
     };
   }
 
-  getAvailableEvents(): { value: string; label: string }[] {
+  getAvailableEvents(): { value: WebhookEvent; label: string }[] {
     return Object.entries(WebhookEvent).map(([key, value]) => ({
       value,
       label: key
@@ -189,11 +196,15 @@ export class WebhookService {
       where: { isActive: true },
     });
 
-    const matchingWebhooks = webhooks.filter((w) => w.events.includes(event));
+    const matchingWebhooks = webhooks.filter((w) =>
+      w.events.includes(event as WebhookEvent),
+    );
 
-    for (const webhook of matchingWebhooks) {
-      await this.deliverWebhook(webhook, event, payload);
-    }
+    await Promise.allSettled(
+      matchingWebhooks.map((webhook) =>
+        this.deliverWebhook(webhook, event, payload),
+      ),
+    );
   }
 
   private async deliverWebhook(
@@ -201,8 +212,10 @@ export class WebhookService {
     event: string,
     payload: Record<string, any>,
   ): Promise<void> {
+    const deliveryId = randomUUID();
+
     const deliveryPayload = {
-      id: randomBytes(16).toString('hex'),
+      id: deliveryId,
       event,
       timestamp: new Date().toISOString(),
       data: payload,
@@ -214,6 +227,7 @@ export class WebhookService {
       .digest('hex');
 
     const delivery = this.deliveryRepository.create({
+      id: deliveryId,
       webhookId: webhook.id,
       event,
       payload: deliveryPayload,
@@ -267,15 +281,96 @@ export class WebhookService {
     }
   }
 
-  private validateEvents(events: string[]): void {
+  private validateEvents(events: WebhookEvent[]): void {
     const validEvents = Object.values(WebhookEvent);
-    const invalidEvents = events.filter(
-      (e) => !validEvents.includes(e as WebhookEvent),
-    );
+    const invalidEvents = events.filter((e) => !validEvents.includes(e));
     if (invalidEvents.length > 0) {
       throw new BadRequestException(
         `Invalid events: ${invalidEvents.join(', ')}. Valid events: ${validEvents.join(', ')}`,
       );
+    }
+  }
+
+  private async validateUrl(url: string): Promise<void> {
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new BadRequestException('Webhook URL must use http or https');
+      }
+
+      const hostname = parsed.hostname;
+      if (isIP(hostname)) {
+        if (
+          hostname === '127.0.0.1' ||
+          hostname === '0.0.0.0' ||
+          hostname === '::1' ||
+          hostname === '::' ||
+          hostname.startsWith('10.') ||
+          hostname.startsWith('192.168.') ||
+          hostname.startsWith('172.') ||
+          hostname.startsWith('fc') ||
+          hostname.startsWith('fd') ||
+          hostname.startsWith('fe80:')
+        ) {
+          throw new BadRequestException(
+            'Webhook URL targets a private or reserved IP address',
+          );
+        }
+        const secondOctet = hostname.split('.')[1];
+        if (
+          hostname.startsWith('172.') &&
+          secondOctet &&
+          parseInt(secondOctet) >= 16 &&
+          parseInt(secondOctet) <= 31
+        ) {
+          throw new BadRequestException(
+            'Webhook URL targets a private IP address range',
+          );
+        }
+        return;
+      }
+
+      try {
+        const addresses = await lookup(hostname, { all: true });
+        for (const addr of addresses) {
+          const ip = addr.address;
+          if (
+            ip === '127.0.0.1' ||
+            ip === '0.0.0.0' ||
+            ip === '::1' ||
+            ip === '::' ||
+            ip.startsWith('10.') ||
+            ip.startsWith('192.168.') ||
+            ip.startsWith('fc') ||
+            ip.startsWith('fd') ||
+            ip.startsWith('fe80:')
+          ) {
+            throw new BadRequestException(
+              'Webhook URL resolves to a private or reserved IP address',
+            );
+          }
+          if (ip.startsWith('172.')) {
+            const secondOctet = ip.split('.')[1];
+            if (
+              secondOctet &&
+              parseInt(secondOctet) >= 16 &&
+              parseInt(secondOctet) <= 31
+            ) {
+              throw new BadRequestException(
+                'Webhook URL resolves to a private IP address',
+              );
+            }
+          }
+        }
+      } catch (err) {
+        if (err instanceof BadRequestException) throw err;
+        this.logger.warn(
+          `DNS lookup failed for webhook URL hostname: ${hostname}`,
+        );
+      }
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      throw new BadRequestException('Invalid webhook URL');
     }
   }
 }

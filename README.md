@@ -254,7 +254,7 @@ Admins can configure webhooks to receive real-time HTTP notifications when authe
 - Verify signatures on the receiving end: `HMAC-SHA256(secret, JSON.stringify(payload))`
 
 **Delivery Tracking:**
-- Every delivery attempt is logged with HTTP response status, response body, attempt count, and status (pending/success/failed/retrying)
+- Every delivery attempt is logged with HTTP response status, response body, attempt count, and final status (`success` or `failed`)
 - 10-second timeout per delivery
 - Delivery history is viewable per webhook in the admin panel
 

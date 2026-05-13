@@ -38,7 +38,7 @@ export class Webhook {
   secret: string;
 
   @Column({ type: 'jsonb' })
-  events: string[];
+  events: WebhookEvent[];
 
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive: boolean;

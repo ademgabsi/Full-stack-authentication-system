@@ -33,10 +33,10 @@ export class WebhookDelivery {
   payload: object;
 
   @Column({ type: 'integer', nullable: true, name: 'response_status' })
-  responseStatus: number;
+  responseStatus: number | null;
 
   @Column({ type: 'text', nullable: true, name: 'response_body' })
-  responseBody: string;
+  responseBody: string | null;
 
   @Column({
     type: 'enum',

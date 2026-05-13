@@ -47,7 +47,7 @@ export interface ListWebhooksParams {
   page?: number;
   limit?: number;
   search?: string;
-  event?: string;
+  event?: WebhookEvent;
 }
 
 export interface ListWebhooksResponse {
@@ -88,7 +88,7 @@ export interface UpdateWebhookRequest {
 }
 
 export interface WebhookEventOption {
-  value: string;
+  value: WebhookEvent;
   label: string;
 }
 
