@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router';
+import { useParams, Link, useNavigate } from 'react-router';
 import { useGetWebhook, useListDeliveries, useUpdateWebhook, useDeleteWebhook } from '@/hooks/useWebhook';
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Modal, ErrorBanner, Spinner } from '@/components/ui';
 import { ArrowLeft, ToggleLeft, ToggleRight, Trash2, ExternalLink, Copy, Check } from 'lucide-react';
@@ -15,6 +15,7 @@ const STATUS_VARIANTS: Record<string, 'success' | 'danger' | 'warning' | 'defaul
 
 export default function WebhookDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<DeliveryStatus | ''>('');
   const [showDelete, setShowDelete] = useState(false);
@@ -42,16 +43,20 @@ export default function WebhookDetail() {
     if (!id) return;
     deleteWebhook.mutate(id, {
       onSuccess: () => {
-        window.location.href = '/admin/webhooks';
+        navigate('/admin/webhooks');
       },
     });
   };
 
-  const copySecret = () => {
+  const copySecret = async () => {
     if (!webhook) return;
-    navigator.clipboard.writeText(webhook.secret);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(webhook.secret);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard access denied or unavailable
+    }
   };
 
   if (isLoading) return <div className="flex justify-center py-12"><Spinner /></div>;

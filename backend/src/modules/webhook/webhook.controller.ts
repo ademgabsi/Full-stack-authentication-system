@@ -9,6 +9,7 @@ import {
   Body,
   UseGuards,
   ParseUUIDPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
@@ -63,7 +64,7 @@ export class WebhookController {
   async getWebhook(@Param('id', ParseUUIDPipe) id: string) {
     const webhook = await this.webhookService.findById(id);
     if (!webhook) {
-      return { message: 'Webhook not found' };
+      throw new NotFoundException('Webhook not found');
     }
     return webhook;
   }

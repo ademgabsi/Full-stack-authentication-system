@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useListWebhooks, useWebhookEvents, useCreateWebhook, useDeleteWebhook } from '@/hooks/useWebhook';
+import { useListWebhooks, useWebhookEvents, useCreateWebhook, useDeleteWebhook, useUpdateWebhook } from '@/hooks/useWebhook';
 import { Card, CardContent, Badge, Button, Modal, ErrorBanner, Spinner, Input } from '@/components/ui';
-import type { Webhook, WebhookEvent } from '@/types';
+import type { Webhook, WebhookEvent, WebhookEventOption } from '@/types';
 import { Plus, Trash2, ExternalLink, ToggleLeft, ToggleRight } from 'lucide-react';
-import { useUpdateWebhook } from '@/hooks/useWebhook';
 import { formatDate } from '@/lib/utils';
 
 export default function WebhooksList() {
@@ -217,7 +216,7 @@ function CreateWebhookModal({
   isSubmitting,
   error,
 }: {
-  events: { value: string; label: string }[];
+  events: WebhookEventOption[];
   onClose: () => void;
   onSubmit: (data: { name: string; url: string; events: WebhookEvent[]; isActive?: boolean }) => void;
   isSubmitting: boolean;
@@ -233,7 +232,7 @@ function CreateWebhookModal({
     );
   };
 
-  const selectAll = () => setSelectedEvents(events.map((e) => e.value as WebhookEvent));
+  const selectAll = () => setSelectedEvents(events.map((e) => e.value));
   const deselectAll = () => setSelectedEvents([]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -286,8 +285,8 @@ function CreateWebhookModal({
                 >
                   <input
                     type="checkbox"
-                    checked={selectedEvents.includes(event.value as WebhookEvent)}
-                    onChange={() => toggleEvent(event.value as WebhookEvent)}
+                    checked={selectedEvents.includes(event.value)}
+                    onChange={() => toggleEvent(event.value)}
                     className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                   <div>
