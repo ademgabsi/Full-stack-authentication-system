@@ -13,6 +13,7 @@ import { CaptchaModule } from './modules/captcha/captcha.module';
 import { BreachPasswordModule } from './modules/auth/breach-password.module';
 import { WebAuthnModule } from './modules/auth/webauthn.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
+import { DeviceFingerprintModule } from './modules/device-fingerprint/device-fingerprint.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RedisThrottlerStorage } from './common/storage/redis-throttler.storage';
@@ -84,6 +85,7 @@ function getSslConfig(sslEnabled: boolean) {
     UsersModule,
     AdminModule,
     WebhookModule,
+    DeviceFingerprintModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

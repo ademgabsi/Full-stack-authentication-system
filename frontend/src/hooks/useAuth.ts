@@ -5,6 +5,7 @@ import { authApi } from '@/api/auth.api';
 import type {
   RegisterRequest,
   LoginRequest,
+  StepUpVerifyRequest,
   MfaVerifyRequest,
   MfaEnableRequest,
   MfaDisableRequest,
@@ -35,6 +36,25 @@ export function useVerifyMfa() {
   return useMutation({
     mutationFn: (data: Omit<MfaVerifyRequest, 'tempToken'>) =>
       authApi.verifyMfa({ ...data, tempToken: tempToken! }),
+    onSuccess: (response) => {
+      const { accessToken, user } = response;
+      login(accessToken, user);
+      navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+    },
+    onError: (error: AxiosError) => {
+      if (error.response?.status === 401) {
+        navigate('/login', { replace: true });
+      }
+    },
+  });
+}
+
+export function useVerifyStepUp() {
+  const navigate = useNavigate();
+  const login = useAuthStore((s) => s.login);
+
+  return useMutation({
+    mutationFn: (data: StepUpVerifyRequest) => authApi.verifyStepUp(data),
     onSuccess: (response) => {
       const { accessToken, user } = response;
       login(accessToken, user);

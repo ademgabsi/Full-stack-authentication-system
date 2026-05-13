@@ -34,6 +34,7 @@ import {
   ResendVerificationDto,
   MfaBackupCodeVerifyDto,
   VerifyEmailDto,
+  StepUpVerifyDto,
 } from './dto';
 import { CurrentUser, Public } from '../../common/decorators';
 import { AppConfigService } from '../../config/app-config.service';
@@ -69,13 +70,29 @@ export class AuthController {
       req.user as any,
       req,
     );
-    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
     const frontendUrl = this.configService.url.match(/:\d+/)
       ? this.configService.url.replace(/:\d+/, ':5173')
       : this.configService.url;
+
+    if ('mfaRequired' in result && result.mfaRequired) {
+      const params = new URLSearchParams();
+      params.append('mfaRequired', 'true');
+      params.append('tempToken', result.tempToken!);
+      return res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
+    }
+
+    if ('stepUpRequired' in result && result.stepUpRequired) {
+      const params = new URLSearchParams();
+      params.append('stepUpRequired', 'true');
+      params.append('stepUpToken', result.stepUpToken!);
+      return res.redirect(`${frontendUrl}/auth/google/callback?${params.toString()}`);
+    }
+
+    const tokenResult = result as { accessToken: string; refreshToken: string; user: any };
+    res.cookie('refresh_token', tokenResult.refreshToken, REFRESH_COOKIE_OPTIONS);
     const params = new URLSearchParams({
-      accessToken: result.accessToken,
-      user: JSON.stringify(result.user),
+      accessToken: tokenResult.accessToken,
+      user: JSON.stringify(tokenResult.user),
     });
     return res.redirect(
       `${frontendUrl}/auth/google/callback?${params.toString()}`,
@@ -175,6 +192,27 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.verifyMfaBackupCode(dto, req);
+    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    const { refreshToken: _, ...body } = result;
+    return body;
+  }
+
+  @Public()
+  @Post('step-up/verify')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
+  @ApiOperation({ summary: 'Verify step-up challenge code' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns access and refresh tokens',
+  })
+  @ApiResponse({ status: 401, description: 'Invalid or expired step-up code' })
+  async verifyStepUp(
+    @Body() dto: StepUpVerifyDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyStepUp(dto, req);
     res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
     const { refreshToken: _, ...body } = result;
     return body;

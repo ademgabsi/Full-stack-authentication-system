@@ -13,6 +13,7 @@ import { PasswordReset } from '../../entities/password-reset.entity';
 import { EmailVerificationToken } from '../../entities/email-verification-token.entity';
 import { EmailModule } from '../email/email.module';
 import { WebhookModule } from '../webhook/webhook.module';
+import { DeviceFingerprintModule } from '../device-fingerprint/device-fingerprint.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { WebhookModule } from '../webhook/webhook.module';
     JwtModule.register({}),
     EmailModule,
     WebhookModule,
+    DeviceFingerprintModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, MfaService, JwtStrategy, GoogleStrategy],
