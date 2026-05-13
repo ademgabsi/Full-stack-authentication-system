@@ -5,3 +5,6 @@ export * from './email-verification-token.entity';
 export * from './webauthn-credential.entity';
 export * from './webhook.entity';
 export * from './webhook-delivery.entity';
+export * from './device-fingerprint.entity';
+export * from './anomaly-log.entity';
+export * from './step-up-challenge.entity';

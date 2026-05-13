@@ -14,6 +14,8 @@ import { Request } from 'express';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const UAParser = require('ua-parser-js');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const geoip = require('geoip-lite');
 import { User, UserRole } from '../../entities/user.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
 import { PasswordReset } from '../../entities/password-reset.entity';
@@ -27,6 +29,9 @@ import { BreachPasswordService } from './breach-password.service';
 import { WebhookService } from '../webhook/webhook.service';
 import { WebhookEvent } from '../../entities/webhook.entity';
 import { GoogleProfile } from './strategies/google.strategy';
+import { DeviceFingerprintService } from '../device-fingerprint/device-fingerprint.service';
+import { AnomalyDetectionService } from '../device-fingerprint/anomaly-detection.service';
+import { StepUpChallengeService } from '../device-fingerprint/step-up-challenge.service';
 import {
   RegisterDto,
   LoginDto,
@@ -38,6 +43,7 @@ import {
   ResendVerificationDto,
   MfaBackupCodeVerifyDto,
   VerifyEmailDto,
+  StepUpVerifyDto,
 } from './dto';
 
 @Injectable()
@@ -61,6 +67,9 @@ export class AuthService {
     private captchaService: CaptchaService,
     private breachService: BreachPasswordService,
     private webhookService: WebhookService,
+    private deviceFingerprintService: DeviceFingerprintService,
+    private anomalyDetectionService: AnomalyDetectionService,
+    private stepUpChallengeService: StepUpChallengeService,
   ) {}
 
   private generateCode(): string {
@@ -91,6 +100,108 @@ export class AuthService {
     if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
     if (Array.isArray(forwarded)) return forwarded[0].trim();
     return req.ip || 'Unknown';
+  }
+
+  private parseBrowser(req?: Request): string {
+    if (!req) return 'Unknown';
+    const ua = req.headers['user-agent'];
+    if (!ua) return 'Unknown';
+    const result = new UAParser(ua).getResult();
+    return result.browser.name || 'Unknown';
+  }
+
+  private parseOS(req?: Request): string {
+    if (!req) return 'Unknown';
+    const ua = req.headers['user-agent'];
+    if (!ua) return 'Unknown';
+    const result = new UAParser(ua).getResult();
+    return result.os.name || 'Unknown';
+  }
+
+  private parseDeviceType(req?: Request): string {
+    if (!req) return 'Unknown';
+    const ua = req.headers['user-agent'];
+    if (!ua) return 'Unknown';
+    const result = new UAParser(ua).getResult();
+    return result.device.type || 'desktop';
+  }
+
+  private async checkAnomaliesAndStepUp(
+    user: User,
+    req?: Request,
+    clientFingerprint?: Record<string, any>,
+  ): Promise<{
+    mfaRequired?: boolean;
+    tempToken?: string;
+    message?: string;
+    stepUpRequired?: boolean;
+    stepUpToken?: string;
+  } | null> {
+    if (!req) return null;
+
+    const fingerprintHash =
+      this.deviceFingerprintService.generateFingerprintHash(
+        clientFingerprint || {},
+        req,
+      );
+    const ip = this.getIpAddress(req);
+    const geo = geoip.lookup(ip);
+
+    const { fingerprint, isNew } =
+      await this.deviceFingerprintService.getOrCreateFingerprint({
+        userId: user.id,
+        fingerprintHash,
+        browser: this.parseBrowser(req),
+        os: this.parseOS(req),
+        deviceType: this.parseDeviceType(req),
+        ipAddress: ip,
+        countryCode: geo?.country,
+        city: geo?.city,
+      });
+
+    const { shouldStepUp } = await this.anomalyDetectionService.detectAnomalies(
+      {
+        userId: user.id,
+        fingerprint,
+        isNewFingerprint: isNew,
+        ipAddress: ip,
+        req,
+      },
+    );
+
+    if (!shouldStepUp) return null;
+
+    if (user.mfaEnabled) {
+      const tempToken = this.jwtService.sign(
+        {
+          sub: user.id,
+          email: user.email,
+          role: user.role,
+          mfaPending: true,
+        },
+        {
+          secret: this.configService.jwtSecret,
+          expiresIn: this.configService.jwtMfaExpiration as any,
+        },
+      );
+      return {
+        mfaRequired: true,
+        tempToken,
+        message: 'MFA verification required due to unusual activity',
+      };
+    }
+
+    const { stepUpToken } =
+      await this.stepUpChallengeService.createEmailChallenge(
+        user.id,
+        user.email,
+      );
+    return {
+      stepUpRequired: true,
+      stepUpToken,
+      message:
+        'Unusual activity detected. Please verify your email to continue.',
+    };
   }
 
   async register(dto: RegisterDto, req?: Request) {
@@ -373,6 +484,15 @@ export class AuthService {
       lastLogin: new Date(),
     });
 
+    const stepUpResult = await this.checkAnomaliesAndStepUp(
+      user,
+      req,
+      dto.fingerprint,
+    );
+    if (stepUpResult) {
+      return stepUpResult;
+    }
+
     if (user.mfaEnabled) {
       const tempToken = this.jwtService.sign(
         {
@@ -447,6 +567,8 @@ export class AuthService {
       req,
     });
 
+    await this.anomalyDetectionService.markStepUpCompleted(user.id);
+
     return this.generateTokens(user, req);
   }
 
@@ -492,6 +614,30 @@ export class AuthService {
       action: 'auth.mfa.verified',
       resource: `user:${user.id}`,
       metadata: { method: 'backup_code' },
+      req,
+    });
+
+    await this.anomalyDetectionService.markStepUpCompleted(user.id);
+
+    return this.generateTokens(user, req);
+  }
+
+  async verifyStepUp(dto: StepUpVerifyDto, req?: Request) {
+    const { userId } = await this.stepUpChallengeService.verifyChallenge(
+      dto.stepUpToken,
+      dto.code,
+    );
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    await this.anomalyDetectionService.markStepUpCompleted(userId);
+
+    await this.auditLogService.log({
+      userId,
+      action: 'auth.step_up.completed',
+      resource: `user:${userId}`,
       req,
     });
 
@@ -690,6 +836,11 @@ export class AuthService {
       this.emailService
         .sendWelcomeEmail(user.email, user.fullName)
         .catch(() => {});
+    }
+
+    const stepUpResult = await this.checkAnomaliesAndStepUp(user!, req);
+    if (stepUpResult) {
+      return stepUpResult;
     }
 
     await this.auditLogService.log({

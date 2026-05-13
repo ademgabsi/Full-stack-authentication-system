@@ -124,4 +124,27 @@ export class EmailService {
       );
     }
   }
+
+  async sendStepUpChallengeEmail(email: string, code: string): Promise<void> {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Unusual Activity Detected',
+        template: 'step-up-challenge',
+        context: {
+          code,
+          appName: this.configService.smtpConfig.fromName,
+        },
+      });
+      this.logger.log(
+        `Step-up challenge email sent to ${this.redactEmail(email)}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send step-up challenge email to ${this.redactEmail(email)}`,
+        error,
+      );
+      throw error;
+    }
+  }
 }

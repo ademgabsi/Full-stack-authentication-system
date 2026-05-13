@@ -7,6 +7,7 @@ import { AdminController } from './admin.controller';
 import { UsersModule } from '../users/users.module';
 import { AppConfigModule } from '../../config/config.module';
 import { WebhookModule } from '../webhook/webhook.module';
+import { DeviceFingerprintModule } from '../device-fingerprint/device-fingerprint.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { WebhookModule } from '../webhook/webhook.module';
     UsersModule,
     AppConfigModule,
     WebhookModule,
+    DeviceFingerprintModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

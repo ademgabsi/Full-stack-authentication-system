@@ -21,6 +21,12 @@ export interface MfaRequiredResponse {
   message: string;
 }
 
+export interface StepUpRequiredResponse {
+  stepUpRequired: true;
+  stepUpToken: string;
+  message: string;
+}
+
 export interface RegisterRequest {
   email: string;
   password: string;
@@ -34,10 +40,28 @@ export interface RegisterResponse {
   userId: string;
 }
 
+export interface FingerprintData {
+  screenResolution?: string;
+  timezone?: string;
+  language?: string;
+  platform?: string;
+  canvasHash?: string;
+  webglHash?: string;
+  fontsHash?: string;
+  colorDepth?: string;
+  touchSupport?: string;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;
   captchaToken?: string;
+  fingerprint?: FingerprintData;
+}
+
+export interface StepUpVerifyRequest {
+  stepUpToken: string;
+  code: string;
 }
 
 export interface MfaVerifyRequest {

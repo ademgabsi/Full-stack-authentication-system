@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, MaxLength, IsOptional } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MaxLength,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { ClientFingerprintDto } from '../../device-fingerprint/dto/client-fingerprint.dto';
 
 export class LoginDto {
   @ApiProperty({ example: 'john@example.com' })
@@ -15,4 +23,10 @@ export class LoginDto {
   @IsOptional()
   @IsString()
   captchaToken?: string;
+
+  @ApiPropertyOptional({ type: ClientFingerprintDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ClientFingerprintDto)
+  fingerprint?: ClientFingerprintDto;
 }

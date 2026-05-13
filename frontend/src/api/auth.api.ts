@@ -5,6 +5,8 @@ import type {
   LoginRequest,
   LoginResponse,
   MfaRequiredResponse,
+  StepUpRequiredResponse,
+  StepUpVerifyRequest,
   MfaVerifyRequest,
   MfaBackupCodeVerifyRequest,
   MfaEnableRequest,
@@ -31,7 +33,10 @@ export const authApi = {
     apiClient.post<MessageResponse>('/auth/resend-verification', data).then((r) => r.data),
 
   login: (data: LoginRequest) =>
-    apiClient.post<LoginResponse | MfaRequiredResponse>('/auth/login', data).then((r) => r.data),
+    apiClient.post<LoginResponse | MfaRequiredResponse | StepUpRequiredResponse>('/auth/login', data).then((r) => r.data),
+
+  verifyStepUp: (data: StepUpVerifyRequest) =>
+    apiClient.post<LoginResponse>('/auth/step-up/verify', data).then((r) => r.data),
 
   verifyMfa: (data: MfaVerifyRequest) =>
     apiClient.post<LoginResponse>('/auth/mfa/verify', data).then((r) => r.data),

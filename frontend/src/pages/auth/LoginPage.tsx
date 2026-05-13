@@ -7,7 +7,8 @@ import { Button, Input, ErrorBanner, Turnstile } from '@/components/ui';
 import { useLogin } from '@/hooks/useAuth';
 import { useWebAuthnLogin } from '@/hooks/useWebAuthn';
 import { useAuthStore } from '@/stores/auth.store';
-import type { LoginResponse, MfaRequiredResponse } from '@/types';
+import { collectFingerprint } from '@/lib/fingerprint';
+import type { LoginResponse, MfaRequiredResponse, StepUpRequiredResponse } from '@/types';
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -44,8 +45,9 @@ export default function LoginPage() {
   }, []);
 
   const onSubmit = (data: FormData) => {
+    const fingerprint = collectFingerprint();
     login(
-      { ...data, captchaToken },
+      { ...data, captchaToken, fingerprint },
       {
         onSuccess: (response) => {
           if ('mfaRequired' in response && response.mfaRequired) {
@@ -53,6 +55,13 @@ export default function LoginPage() {
               .getState()
               .setTempToken((response as MfaRequiredResponse).tempToken);
             navigate('/mfa/verify', { replace: true });
+            return;
+          }
+          if ('stepUpRequired' in response && response.stepUpRequired) {
+            useAuthStore
+              .getState()
+              .setStepUpToken((response as StepUpRequiredResponse).stepUpToken);
+            navigate('/step-up/verify', { replace: true });
             return;
           }
           const loginResp = response as LoginResponse;
