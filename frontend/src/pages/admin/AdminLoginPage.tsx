@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router';
-import { Button, Input, ErrorBanner } from '@/components/ui';
+import { Button, Input, ErrorBanner, Turnstile } from '@/components/ui';
 import { useLogin } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/auth.store';
 import type { LoginResponse, MfaRequiredResponse } from '@/types';
@@ -15,10 +15,14 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+const TURNSTILE_ENABLED = !!import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
 export default function AdminLoginPage() {
   const navigate = useNavigate();
   const { mutate: login, isPending, error } = useLogin();
   const [adminError, setAdminError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   const {
     register: reg,
@@ -28,28 +32,41 @@ export default function AdminLoginPage() {
     resolver: zodResolver(schema),
   });
 
+  const handleCaptchaToken = useCallback((token: string) => {
+    setCaptchaToken(token);
+  }, []);
+
+  const resetCaptcha = useCallback(() => {
+    setCaptchaToken('');
+    setTurnstileKey((k) => k + 1);
+  }, []);
+
   const onSubmit = (data: FormData) => {
     setAdminError(null);
-    login(data, {
-      onSuccess: (response) => {
-        if ('mfaRequired' in response && response.mfaRequired) {
-          useAuthStore.getState().setTempToken((response as MfaRequiredResponse).tempToken);
-          navigate('/mfa/verify', { replace: true });
-          return;
-        }
-        const loginResp = response as LoginResponse;
-        if (loginResp.user?.role !== 'admin') {
-          useAuthStore.getState().logout();
-          setAdminError('This account does not have admin privileges.');
-          return;
-        }
-        useAuthStore.getState().login(loginResp.accessToken, loginResp.user);
-        navigate('/admin', { replace: true });
+    login(
+      { ...data, captchaToken },
+      {
+        onSuccess: (response) => {
+          if ('mfaRequired' in response && response.mfaRequired) {
+            useAuthStore.getState().setTempToken((response as MfaRequiredResponse).tempToken);
+            navigate('/mfa/verify', { replace: true });
+            return;
+          }
+          const loginResp = response as LoginResponse;
+          if (loginResp.user?.role !== 'admin') {
+            useAuthStore.getState().logout();
+            setAdminError('This account does not have admin privileges.');
+            return;
+          }
+          useAuthStore.getState().login(loginResp.accessToken, loginResp.user);
+          navigate('/admin', { replace: true });
+        },
+        onError: () => {
+          setAdminError('Invalid email or password.');
+          resetCaptcha();
+        },
       },
-      onError: () => {
-        setAdminError('Invalid email or password.');
-      },
-    });
+    );
   };
 
   return (
@@ -91,7 +108,13 @@ export default function AdminLoginPage() {
             Forgot password?
           </Link>
         </div>
-        <Button type="submit" loading={isPending} className="w-full">
+        <Turnstile key={turnstileKey} onToken={handleCaptchaToken} />
+        <Button
+          type="submit"
+          loading={isPending}
+          className="w-full"
+          disabled={TURNSTILE_ENABLED && !captchaToken}
+        >
           Sign in to Admin
         </Button>
       </form>

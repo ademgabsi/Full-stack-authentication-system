@@ -125,7 +125,12 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
     let record = this.fallback.get(key);
 
     if (!record || record.expiresAt <= now) {
-      record = { totalHits: 0, expiresAt: now + ttl, isBlocked: false, blockExpiresAt: 0 };
+      record = {
+        totalHits: 0,
+        expiresAt: now + ttl,
+        isBlocked: false,
+        blockExpiresAt: 0,
+      };
     }
 
     record.totalHits += 1;

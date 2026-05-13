@@ -10,11 +10,13 @@ import {
   X,
   Shield,
   ChevronDown,
+  Webhook,
 } from 'lucide-react';
 
 const sidebarItems = [
   { label: 'Overview', path: '/admin', icon: LayoutDashboard },
   { label: 'Users', path: '/admin/users', icon: Users },
+  { label: 'Webhooks', path: '/admin/webhooks', icon: Webhook },
 ];
 
 export function AdminLayout() {

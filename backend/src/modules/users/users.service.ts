@@ -11,6 +11,8 @@ import { Request } from 'express';
 import { User, UserRole } from '../../entities/user.entity';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { AuditLogService } from '../audit/audit.service';
+import { WebhookService } from '../webhook/webhook.service';
+import { WebhookEvent } from '../../entities/webhook.entity';
 import { UpdateProfileDto, ChangePasswordDto } from './dto';
 import { BreachPasswordService } from '../auth/breach-password.service';
 
@@ -24,6 +26,7 @@ export class UsersService {
     private cloudinaryService: CloudinaryService,
     private auditLogService: AuditLogService,
     private breachService: BreachPasswordService,
+    private webhookService: WebhookService,
   ) {}
 
   async findById(id: string): Promise<User> {
@@ -101,6 +104,12 @@ export class UsersService {
       resource: `user:${id}`,
       req,
     });
+
+    this.webhookService
+      .dispatchEvent(WebhookEvent.USER_PASSWORD_CHANGED, {
+        userId: id,
+      })
+      .catch(() => {});
 
     return { message: 'Password changed successfully' };
   }

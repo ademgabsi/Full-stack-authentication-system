@@ -30,10 +30,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ): void {
     const { name, emails, id, photos } = profile;
     if (!emails || emails.length === 0) {
-      done(
-        new UnauthorizedException('Google account has no email'),
-        false,
-      );
+      done(new UnauthorizedException('Google account has no email'), false);
       return;
     }
 
