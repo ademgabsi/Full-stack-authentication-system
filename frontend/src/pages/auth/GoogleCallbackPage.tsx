@@ -7,6 +7,8 @@ export default function GoogleCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const setTempToken = useAuthStore((s) => s.setTempToken);
+  const setStepUpToken = useAuthStore((s) => s.setStepUpToken);
 
   useEffect(() => {
     const accessToken = searchParams.get('accessToken');
@@ -15,11 +17,15 @@ export default function GoogleCallbackPage() {
     const stepUpRequired = searchParams.get('stepUpRequired');
 
     if (mfaRequired === 'true') {
+      setTempToken(null);
+      setStepUpToken(null);
       navigate('/mfa/verify', { replace: true });
       return;
     }
 
     if (stepUpRequired === 'true') {
+      setStepUpToken(null);
+      setTempToken(null);
       navigate('/step-up/verify', { replace: true });
       return;
     }
@@ -36,7 +42,7 @@ export default function GoogleCallbackPage() {
     } catch {
       navigate('/login', { replace: true });
     }
-  }, [searchParams, navigate, login]);
+  }, [searchParams, navigate, login, setTempToken, setStepUpToken]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

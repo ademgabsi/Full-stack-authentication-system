@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
+import { ThrottlerStorage } from '@nestjs/throttler';
 import * as bcrypt from 'bcrypt';
 import { AppModule } from '../src/app.module';
 import { User, UserRole } from '../src/entities/user.entity';
@@ -12,6 +13,27 @@ import { StepUpChallenge } from '../src/entities/step-up-challenge.entity';
 import { RefreshToken } from '../src/entities/refresh-token.entity';
 import { MailerService } from '@nestjs-modules/mailer';
 import { CaptchaService } from '../src/modules/captcha/captcha.service';
+
+function createInMemoryThrottlerStorage(): ThrottlerStorage {
+  const store = new Map<string, { totalHits: number; expiresAt: number }>();
+  return {
+    increment: async (key, ttl, _limit, _blockDuration, _throttlerName) => {
+      const now = Date.now();
+      let record = store.get(key);
+      if (!record || record.expiresAt <= now) {
+        record = { totalHits: 0, expiresAt: now + ttl };
+      }
+      record.totalHits += 1;
+      store.set(key, record);
+      return {
+        totalHits: record.totalHits,
+        timeToExpire: Math.max(0, record.expiresAt - now),
+        isBlocked: false,
+        timeToBlockExpire: 0,
+      };
+    },
+  };
+}
 
 describe('Device Fingerprint & Anomaly Detection (e2e)', () => {
   jest.setTimeout(30000);
@@ -24,6 +46,8 @@ describe('Device Fingerprint & Anomaly Detection (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideProvider(ThrottlerStorage)
+      .useValue(createInMemoryThrottlerStorage())
       .overrideProvider(MailerService)
       .useValue({ sendMail: () => ({}) } as any)
       .overrideProvider(CaptchaService)

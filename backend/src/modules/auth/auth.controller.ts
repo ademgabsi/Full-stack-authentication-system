@@ -191,7 +191,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tempToken = dto.tempToken || req.cookies?.['mfa_temp_token'];
+    const tempToken = req.cookies?.['mfa_temp_token'] || dto.tempToken;
     if (!tempToken) {
       throw new HttpException(
         'Missing temporary token',
@@ -219,7 +219,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tempToken = dto.tempToken || req.cookies?.['mfa_temp_token'];
+    const tempToken = req.cookies?.['mfa_temp_token'] || dto.tempToken;
     if (!tempToken) {
       throw new HttpException(
         'Missing temporary token',
@@ -251,7 +251,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const stepUpToken = dto.stepUpToken || req.cookies?.['step_up_token'];
+    const stepUpToken = req.cookies?.['step_up_token'] || dto.stepUpToken;
     if (!stepUpToken) {
       throw new HttpException('Missing step-up token', HttpStatus.UNAUTHORIZED);
     }

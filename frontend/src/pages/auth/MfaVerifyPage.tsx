@@ -39,9 +39,9 @@ export default function MfaVerifyPage() {
     resolver: zodResolver(backupSchema),
   });
 
-  const { mutate: verifyBackup, isPending: backupPending } = useVerifyMfaBackup();
+  const { mutate: verifyBackup, isPending: backupPending, error: backupError } = useVerifyMfaBackup();
 
-  const activeError = mfaError;
+  const activeError = useBackup ? backupError : mfaError;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
