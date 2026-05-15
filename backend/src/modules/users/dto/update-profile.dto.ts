@@ -5,6 +5,7 @@ import {
   MaxLength,
   IsOptional,
   IsEmail,
+  ValidateIf,
 } from 'class-validator';
 
 export class UpdateProfileDto {
@@ -19,4 +20,11 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @ApiPropertyOptional({ description: 'Required when changing email' })
+  @ValidateIf((o) => o.email !== undefined)
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  currentPassword?: string;
 }

@@ -53,6 +53,26 @@ export class UsersService {
       if (existing) {
         throw new BadRequestException('Email already in use');
       }
+
+      if (!dto.currentPassword) {
+        throw new BadRequestException('Current password is required to change email');
+      }
+
+      const userWithPassword = await this.userRepository.findOne({
+        where: { id },
+        select: ['id', 'passwordHash'],
+      });
+      if (!userWithPassword?.passwordHash) {
+        throw new BadRequestException('Cannot change email for OAuth accounts');
+      }
+
+      const isPasswordValid = await bcrypt.compare(
+        dto.currentPassword,
+        userWithPassword.passwordHash,
+      );
+      if (!isPasswordValid) {
+        throw new BadRequestException('Current password is incorrect');
+      }
     }
 
     await this.userRepository.update(id, {

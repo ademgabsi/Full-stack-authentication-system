@@ -19,6 +19,9 @@ export class RefreshToken {
   @Column({ type: 'varchar', length: 64 })
   token: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  family: string;
+
   @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
 

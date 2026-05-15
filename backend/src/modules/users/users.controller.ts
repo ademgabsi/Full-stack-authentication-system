@@ -84,6 +84,22 @@ export class UsersController {
     @CurrentUser('id') userId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    const MAGIC_BYTES: Record<string, number[]> = {
+      'image/jpeg': [0xff, 0xd8, 0xff],
+      'image/png': [0x89, 0x50, 0x4e, 0x47],
+      'image/gif': [0x47, 0x49, 0x46],
+      'image/webp': [0x52, 0x49, 0x46, 0x46],
+    };
+
+    const expected = MAGIC_BYTES[file.mimetype];
+    if (expected) {
+      const header = file.buffer.slice(0, expected.length);
+      const matches = expected.every((byte, i) => header[i] === byte);
+      if (!matches) {
+        throw new BadRequestException('File content does not match the declared file type');
+      }
+    }
+
     return this.usersService.uploadImage(userId, file);
   }
 }
