@@ -96,10 +96,11 @@ export class AuthService {
 
   private getIpAddress(req?: Request): string {
     if (!req) return 'Unknown';
+    if (req.ip) return req.ip;
     const forwarded = req.headers['x-forwarded-for'];
     if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
     if (Array.isArray(forwarded)) return forwarded[0].trim();
-    return req.ip || 'Unknown';
+    return 'Unknown';
   }
 
   private parseUA(req?: Request): {
@@ -731,6 +732,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid password');
     }
 
+    if (user.mfaSecret) {
+      if (!dto.totpCode) {
+        throw new BadRequestException('Current MFA code is required to disable MFA');
+      }
+      if (!this.mfaService.verifyTotp(user.mfaSecret, dto.totpCode)) {
+        throw new UnauthorizedException('Invalid MFA code');
+      }
+    }
+
     await this.userRepository.update(userId, {
       mfaEnabled: false,
       mfaSecret: null!,
@@ -878,9 +888,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
     if (refreshTokenEntity.isRevoked) {
-      await this.refreshTokenRepository.delete({
-        userId: refreshTokenEntity.userId,
-      });
+      if (refreshTokenEntity.family) {
+        await this.refreshTokenRepository.delete({
+          userId: refreshTokenEntity.userId,
+          family: refreshTokenEntity.family,
+        });
+      } else {
+        await this.refreshTokenRepository.delete({
+          userId: refreshTokenEntity.userId,
+        });
+      }
       throw new UnauthorizedException('Refresh token has been revoked');
     }
     if (refreshTokenEntity.expiresAt < new Date()) {
@@ -901,7 +918,7 @@ export class AuthService {
       req,
     });
 
-    return this.generateTokens(refreshTokenEntity.user, req);
+    return this.generateTokens(refreshTokenEntity.user, req, refreshTokenEntity.family || undefined);
   }
 
   async logout(refreshToken: string, userId?: string, req?: Request) {
@@ -940,10 +957,11 @@ export class AuthService {
     await this.passwordResetRepository.delete({ userId: user.id });
 
     const code = this.generateCode();
+    const hashedCode = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await this.passwordResetRepository.save(
       this.passwordResetRepository.create({
-        code,
+        code: hashedCode,
         userId: user.id,
         expiresAt,
       }),
@@ -974,9 +992,17 @@ export class AuthService {
       throw new BadRequestException('Invalid reset code');
     }
 
-    const resetToken = await this.passwordResetRepository.findOne({
-      where: { code: dto.code, userId: user.id },
+    const resetTokens = await this.passwordResetRepository.find({
+      where: { userId: user.id, used: false },
     });
+    let resetToken: PasswordReset | null = null;
+    for (const rt of resetTokens) {
+      const isValid = await bcrypt.compare(dto.code, rt.code);
+      if (isValid) {
+        resetToken = rt;
+        break;
+      }
+    }
     if (!resetToken) {
       throw new BadRequestException('Invalid reset code');
     }
@@ -1112,7 +1138,7 @@ export class AuthService {
     return { message: 'All other sessions revoked successfully' };
   }
 
-  private async generateTokens(user: User, req?: Request) {
+  private async generateTokens(user: User, req?: Request, family?: string) {
     const payload = {
       sub: user.id,
       email: user.email,
@@ -1131,12 +1157,14 @@ export class AuthService {
     const expiresAt = new Date(
       Date.now() + this.parseDuration(this.configService.jwtRefreshExpiration),
     );
+    const tokenFamily = family || randomUUID();
 
     await this.refreshTokenRepository.save(
       this.refreshTokenRepository.create({
         token: tokenHash,
         userId: user.id,
         expiresAt,
+        family: tokenFamily,
         deviceInfo: this.parseDeviceInfo(req),
         ipAddress: this.getIpAddress(req),
         lastUsedAt: new Date(),

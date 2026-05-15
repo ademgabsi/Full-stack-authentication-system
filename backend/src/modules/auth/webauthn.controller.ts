@@ -11,6 +11,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
@@ -67,7 +68,12 @@ export class WebAuthnController {
     @Req() req: Request,
   ) {
     const user = await this.authService.findUserById(userId);
-    const responseJson = JSON.parse(dto.response) as RegistrationResponseJSON;
+    let responseJson: RegistrationResponseJSON;
+    try {
+      responseJson = JSON.parse(dto.response) as RegistrationResponseJSON;
+    } catch {
+      throw new BadRequestException('Invalid registration response format');
+    }
     const credential = await this.webAuthnService.verifyRegistration(
       user,
       responseJson,
@@ -109,7 +115,12 @@ export class WebAuthnController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const responseJson = JSON.parse(dto.response) as AuthenticationResponseJSON;
+    let responseJson: AuthenticationResponseJSON;
+    try {
+      responseJson = JSON.parse(dto.response) as AuthenticationResponseJSON;
+    } catch {
+      throw new BadRequestException('Invalid authentication response format');
+    }
     const user = await this.webAuthnService.verifyAuthentication(
       responseJson,
       req,

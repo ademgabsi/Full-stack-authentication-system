@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { authenticator } from 'otplib';
 import * as QRCode from 'qrcode';
-import { randomBytes, createHmac } from 'crypto';
+import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
 import { AppConfigService } from '../../config/app-config.service';
 
 @Injectable()
@@ -23,7 +23,11 @@ export class MfaService {
   }
 
   verifyTotp(secret: string, token: string): boolean {
-    return authenticator.verify({ token, secret });
+    const expected = authenticator.generate(secret);
+    if (token.length !== expected.length) return false;
+    const a = Buffer.from(token, 'utf8');
+    const b = Buffer.from(expected, 'utf8');
+    return timingSafeEqual(a, b);
   }
 
   generateBackupCodes(count: number = 10): string[] {

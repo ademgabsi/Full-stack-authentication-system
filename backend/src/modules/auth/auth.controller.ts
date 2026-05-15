@@ -39,13 +39,16 @@ import {
 import { CurrentUser, Public } from '../../common/decorators';
 import { AppConfigService } from '../../config/app-config.service';
 
-const REFRESH_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: '/api/auth',
-};
+function getRefreshCookieOptions(userRole?: string) {
+  const isAdmin = userRole === 'admin';
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+    maxAge: isAdmin ? 2 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
+    path: '/api/auth',
+  };
+}
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -108,7 +111,7 @@ export class AuthController {
     res.cookie(
       'refresh_token',
       tokenResult.refreshToken,
-      REFRESH_COOKIE_OPTIONS,
+      getRefreshCookieOptions(tokenResult.user?.role),
     );
     const params = new URLSearchParams({
       accessToken: tokenResult.accessToken,
@@ -169,7 +172,7 @@ export class AuthController {
   ) {
     const result = await this.authService.login(dto, req);
     if ('refreshToken' in result) {
-      res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+      res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
       const { refreshToken: _, ...body } = result;
       return body;
     }
@@ -199,7 +202,7 @@ export class AuthController {
       );
     }
     const result = await this.authService.verifyMfa({ ...dto, tempToken }, req);
-    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
     res.clearCookie('mfa_temp_token', { path: '/api/auth' });
     const { refreshToken: _, ...body } = result;
     return body;
@@ -230,7 +233,7 @@ export class AuthController {
       { ...dto, tempToken },
       req,
     );
-    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
     res.clearCookie('mfa_temp_token', { path: '/api/auth' });
     const { refreshToken: _, ...body } = result;
     return body;
@@ -259,7 +262,7 @@ export class AuthController {
       { ...dto, stepUpToken },
       req,
     );
-    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
     res.clearCookie('step_up_token', { path: '/api/auth' });
     const { refreshToken: _, ...body } = result;
     return body;
@@ -332,7 +335,7 @@ export class AuthController {
       throw new HttpException('Missing refresh token', HttpStatus.UNAUTHORIZED);
     }
     const result = await this.authService.refreshTokens(token, req);
-    res.cookie('refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
     const { refreshToken: _, ...resp } = result;
     return resp;
   }

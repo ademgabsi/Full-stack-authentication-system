@@ -200,11 +200,16 @@ export class WebhookService {
       w.events.includes(event as WebhookEvent),
     );
 
-    await Promise.allSettled(
-      matchingWebhooks.map((webhook) =>
-        this.deliverWebhook(webhook, event, payload),
-      ),
-    );
+    const limitedWebhooks = matchingWebhooks.slice(0, 20);
+    const MAX_CONCURRENT_DELIVERIES = 5;
+    for (let i = 0; i < limitedWebhooks.length; i += MAX_CONCURRENT_DELIVERIES) {
+      const batch = limitedWebhooks.slice(i, i + MAX_CONCURRENT_DELIVERIES);
+      await Promise.allSettled(
+        batch.map((webhook) =>
+          this.deliverWebhook(webhook, event, payload),
+        ),
+      );
+    }
   }
 
   private async deliverWebhook(
@@ -310,7 +315,8 @@ export class WebhookService {
           hostname.startsWith('172.') ||
           hostname.startsWith('fc') ||
           hostname.startsWith('fd') ||
-          hostname.startsWith('fe80:')
+          hostname.startsWith('fe80:') ||
+          hostname.startsWith('169.254.')
         ) {
           throw new BadRequestException(
             'Webhook URL targets a private or reserved IP address',
@@ -343,7 +349,8 @@ export class WebhookService {
             ip.startsWith('192.168.') ||
             ip.startsWith('fc') ||
             ip.startsWith('fd') ||
-            ip.startsWith('fe80:')
+            ip.startsWith('fe80:') ||
+            ip.startsWith('169.254.')
           ) {
             throw new BadRequestException(
               'Webhook URL resolves to a private or reserved IP address',

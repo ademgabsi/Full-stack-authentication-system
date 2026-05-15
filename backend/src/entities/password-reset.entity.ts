@@ -16,7 +16,7 @@ export class PasswordReset {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 6 })
+  @Column({ type: 'text' })
   code: string;
 
   @Column({ type: 'uuid', name: 'user_id' })
