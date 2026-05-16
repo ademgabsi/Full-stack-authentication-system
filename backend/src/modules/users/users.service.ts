@@ -55,7 +55,9 @@ export class UsersService {
       }
 
       if (!dto.currentPassword) {
-        throw new BadRequestException('Current password is required to change email');
+        throw new BadRequestException(
+          'Current password is required to change email',
+        );
       }
 
       const userWithPassword = await this.userRepository.findOne({

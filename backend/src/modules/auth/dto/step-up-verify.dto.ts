@@ -1,4 +1,11 @@
-import { IsUUID, IsString, IsNotEmpty, Length, Matches, IsOptional } from 'class-validator';
+import {
+  IsUUID,
+  IsString,
+  IsNotEmpty,
+  Length,
+  Matches,
+  IsOptional,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class StepUpVerifyDto {

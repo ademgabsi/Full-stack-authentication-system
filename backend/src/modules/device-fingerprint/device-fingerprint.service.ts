@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
@@ -8,20 +8,88 @@ import { ClientFingerprintDto } from './dto/client-fingerprint.dto';
 
 @Injectable()
 export class DeviceFingerprintService {
+  private static readonly ALLOWED_PLATFORMS = new Set([
+    'Win32',
+    'Win64',
+    'Windows',
+    'MacIntel',
+    'MacPPC',
+    'Linux x86_64',
+    'Linux i686',
+    'Linux armv7l',
+    'Linux aarch64',
+    'iPhone',
+    'iPad',
+    'Android',
+    'CrOS',
+    'FreeBSD',
+    'OpenBSD',
+    'SunOS',
+  ]);
+
+  private static readonly ALLOWED_COLOR_DEPTHS = new Set([
+    '24',
+    '30',
+    '32',
+    '48',
+  ]);
+
   constructor(
     @InjectRepository(DeviceFingerprint)
     private fingerprintRepo: Repository<DeviceFingerprint>,
   ) {}
 
+  private validateClientData(clientData: ClientFingerprintDto): void {
+    if (
+      clientData.platform &&
+      !DeviceFingerprintService.ALLOWED_PLATFORMS.has(clientData.platform)
+    ) {
+      throw new BadRequestException('Invalid platform value');
+    }
+    if (
+      clientData.colorDepth &&
+      !DeviceFingerprintService.ALLOWED_COLOR_DEPTHS.has(
+        String(clientData.colorDepth),
+      )
+    ) {
+      throw new BadRequestException('Invalid color depth value');
+    }
+    if (clientData.screenResolution) {
+      const match = clientData.screenResolution.match(/^(\d+)x(\d+)$/);
+      if (
+        !match ||
+        parseInt(match[1]) < 320 ||
+        parseInt(match[1]) > 7680 ||
+        parseInt(match[2]) < 240 ||
+        parseInt(match[2]) > 4320
+      ) {
+        throw new BadRequestException('Invalid screen resolution');
+      }
+    }
+    if (clientData.timezone) {
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: clientData.timezone });
+      } catch {
+        throw new BadRequestException('Invalid timezone');
+      }
+    }
+  }
+
   generateFingerprintHash(
     clientData: ClientFingerprintDto,
     req: Request,
   ): string {
+    this.validateClientData(clientData);
+
     const ua = req.headers['user-agent'] || '';
     const acceptLang = req.headers['accept-language'] || '';
     const acceptEnc = req.headers['accept-encoding'] || '';
+    const ip = req.ip || '';
 
-    const serverComponents = [ua, acceptLang, acceptEnc].join('|');
+    const serverComponents = createHash('sha256')
+      .update([ua, acceptLang, acceptEnc, ip].join('|'))
+      .digest('hex');
+
     const clientComponents = [
       clientData.screenResolution,
       clientData.timezone,

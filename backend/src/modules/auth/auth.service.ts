@@ -7,9 +7,9 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomUUID, randomInt, createHash } from 'crypto';
+import { randomUUID, randomInt, randomBytes, createHash } from 'crypto';
 import { Request } from 'express';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -59,6 +59,7 @@ export class AuthService {
     private passwordResetRepository: Repository<PasswordReset>,
     @InjectRepository(EmailVerificationToken)
     private emailVerificationRepository: Repository<EmailVerificationToken>,
+    private dataSource: DataSource,
     private jwtService: JwtService,
     private configService: AppConfigService,
     private emailService: EmailService,
@@ -74,6 +75,10 @@ export class AuthService {
 
   private generateCode(): string {
     return String(randomInt(100000, 1000000));
+  }
+
+  private generateSecureToken(): string {
+    return randomBytes(32).toString('hex');
   }
 
   private hashToken(token: string): string {
@@ -229,7 +234,7 @@ export class AuthService {
       );
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, 12);
     const user = this.userRepository.create({
       email: normalizedEmail,
       passwordHash,
@@ -238,7 +243,7 @@ export class AuthService {
     });
     await this.userRepository.save(user);
 
-    const code = this.generateCode();
+    const code = this.generateSecureToken();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const tokenEntity = this.emailVerificationRepository.create({
       code,
@@ -337,7 +342,7 @@ export class AuthService {
 
     await this.emailVerificationRepository.delete({ userId: user.id });
 
-    const code = this.generateCode();
+    const code = this.generateSecureToken();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await this.emailVerificationRepository.save(
       this.emailVerificationRepository.create({
@@ -734,7 +739,9 @@ export class AuthService {
 
     if (user.mfaSecret) {
       if (!dto.totpCode) {
-        throw new BadRequestException('Current MFA code is required to disable MFA');
+        throw new BadRequestException(
+          'Current MFA code is required to disable MFA',
+        );
       }
       if (!this.mfaService.verifyTotp(user.mfaSecret, dto.totpCode)) {
         throw new UnauthorizedException('Invalid MFA code');
@@ -879,46 +886,56 @@ export class AuthService {
 
   async refreshTokens(refreshToken: string, req?: Request) {
     const tokenHash = this.hashToken(refreshToken);
-    const refreshTokenEntity = await this.refreshTokenRepository.findOne({
-      where: { token: tokenHash },
-      relations: ['user'],
-    });
 
-    if (!refreshTokenEntity) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-    if (refreshTokenEntity.isRevoked) {
-      if (refreshTokenEntity.family) {
-        await this.refreshTokenRepository.delete({
-          userId: refreshTokenEntity.userId,
-          family: refreshTokenEntity.family,
-        });
-      } else {
-        await this.refreshTokenRepository.delete({
-          userId: refreshTokenEntity.userId,
-        });
+    return this.dataSource.transaction('SERIALIZABLE', async (manager) => {
+      const refreshTokenEntity = await manager
+        .createQueryBuilder(RefreshToken, 'rt')
+        .innerJoinAndSelect('rt.user', 'user')
+        .where('rt.token = :tokenHash', { tokenHash })
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!refreshTokenEntity) {
+        throw new UnauthorizedException('Invalid refresh token');
       }
-      throw new UnauthorizedException('Refresh token has been revoked');
-    }
-    if (refreshTokenEntity.expiresAt < new Date()) {
-      throw new UnauthorizedException('Refresh token has expired');
-    }
-    if (!refreshTokenEntity.user.isActive) {
-      throw new ForbiddenException('Account deactivated');
-    }
+      if (refreshTokenEntity.isRevoked) {
+        if (refreshTokenEntity.family) {
+          await manager.delete(RefreshToken, {
+            userId: refreshTokenEntity.userId,
+            family: refreshTokenEntity.family,
+          });
+        } else {
+          await manager.delete(RefreshToken, {
+            userId: refreshTokenEntity.userId,
+          });
+        }
+        throw new UnauthorizedException('Refresh token has been revoked');
+      }
+      if (refreshTokenEntity.expiresAt < new Date()) {
+        throw new UnauthorizedException('Refresh token has expired');
+      }
+      if (!refreshTokenEntity.user.isActive) {
+        throw new ForbiddenException('Account deactivated');
+      }
 
-    await this.refreshTokenRepository.update(refreshTokenEntity.id, {
-      isRevoked: true,
+      await manager.update(RefreshToken, refreshTokenEntity.id, {
+        isRevoked: true,
+      });
+
+      await this.auditLogService.log({
+        userId: refreshTokenEntity.userId,
+        action: 'auth.refresh',
+        resource: `user:${refreshTokenEntity.userId}`,
+        req,
+      });
+
+      return this.generateTokensWithManager(
+        manager,
+        refreshTokenEntity.user,
+        req,
+        refreshTokenEntity.family || undefined,
+      );
     });
-
-    await this.auditLogService.log({
-      userId: refreshTokenEntity.userId,
-      action: 'auth.refresh',
-      resource: `user:${refreshTokenEntity.userId}`,
-      req,
-    });
-
-    return this.generateTokens(refreshTokenEntity.user, req, refreshTokenEntity.family || undefined);
   }
 
   async logout(refreshToken: string, userId?: string, req?: Request) {
@@ -956,7 +973,7 @@ export class AuthService {
 
     await this.passwordResetRepository.delete({ userId: user.id });
 
-    const code = this.generateCode();
+    const code = this.generateSecureToken();
     const hashedCode = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await this.passwordResetRepository.save(
@@ -1030,7 +1047,7 @@ export class AuthService {
       );
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, 12);
     await this.userRepository.update(resetToken.userId, { passwordHash });
     await this.passwordResetRepository.update(resetToken.id, { used: true });
 
@@ -1136,6 +1153,56 @@ export class AuthService {
     });
 
     return { message: 'All other sessions revoked successfully' };
+  }
+
+  private async generateTokensWithManager(
+    manager: EntityManager,
+    user: User,
+    req?: Request,
+    family?: string,
+  ) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret: this.configService.jwtSecret,
+      expiresIn: this.configService.jwtExpiration as any,
+      issuer: 'authsystem-api',
+      audience: 'authsystem-app',
+    });
+
+    const refreshToken = randomUUID();
+    const tokenHash = this.hashToken(refreshToken);
+    const expiresAt = new Date(
+      Date.now() + this.parseDuration(this.configService.jwtRefreshExpiration),
+    );
+    const tokenFamily = family || randomUUID();
+
+    await manager.save(RefreshToken, {
+      token: tokenHash,
+      userId: user.id,
+      expiresAt,
+      family: tokenFamily,
+      deviceInfo: this.parseDeviceInfo(req),
+      ipAddress: this.getIpAddress(req),
+      lastUsedAt: new Date(),
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        mfaEnabled: user.mfaEnabled,
+        image: user.image,
+      },
+    };
   }
 
   private async generateTokens(user: User, req?: Request, family?: string) {

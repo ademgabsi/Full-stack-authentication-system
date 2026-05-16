@@ -11,6 +11,11 @@ export class WebAuthnRegistrationVerifyDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  challengeKey: string;
 }
 
 export class WebAuthnAuthenticationVerifyDto {
@@ -18,6 +23,11 @@ export class WebAuthnAuthenticationVerifyDto {
   @IsString()
   @IsNotEmpty()
   response: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  challengeKey: string;
 }
 
 export class WebAuthnAuthenticationOptionsDto {

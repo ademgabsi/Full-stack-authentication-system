@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -25,7 +26,11 @@ import { Request } from 'express';
 @Injectable()
 export class WebAuthnService {
   private readonly logger = new Logger(WebAuthnService.name);
-  private challenges = new Map<string, string>();
+  private challenges = new Map<
+    string,
+    { challenge: string; expiresAt: number }
+  >();
+  private static readonly CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
   constructor(
     @InjectRepository(WebAuthnCredential)
@@ -56,8 +61,13 @@ export class WebAuthnService {
       },
     });
 
-    this.challenges.set(user.id, options.challenge);
-    return options;
+    const challengeKey = `reg:${user.id}:${randomUUID()}`;
+    this.challenges.set(challengeKey, {
+      challenge: options.challenge,
+      expiresAt: Date.now() + WebAuthnService.CHALLENGE_TTL_MS,
+    });
+    this.purgeExpiredChallenges();
+    return { ...options, challengeKey };
   }
 
   async verifyRegistration(
@@ -65,11 +75,18 @@ export class WebAuthnService {
     responseJson: RegistrationResponseJSON,
     name?: string,
     req?: Request,
+    challengeKey?: string,
   ) {
-    const expectedChallenge = this.challenges.get(user.id);
-    if (!expectedChallenge) {
+    const key = challengeKey || `reg:${user.id}`;
+    const challengeData = this.challenges.get(key);
+    if (!challengeData) {
       throw new BadRequestException('No pending registration challenge found');
     }
+    if (Date.now() > challengeData.expiresAt) {
+      this.challenges.delete(key);
+      throw new BadRequestException('Registration challenge has expired');
+    }
+    const expectedChallenge = challengeData.challenge;
 
     try {
       const verification = await verifyRegistrationResponse({
@@ -107,7 +124,7 @@ export class WebAuthnService {
       });
       await this.credentialRepository.save(newCredential);
 
-      this.challenges.delete(user.id);
+      this.challenges.delete(key);
 
       await this.auditLogService.log({
         userId: user.id,
@@ -118,8 +135,17 @@ export class WebAuthnService {
 
       return newCredential;
     } catch (error) {
-      this.challenges.delete(user.id);
+      this.challenges.delete(key);
       throw error;
+    }
+  }
+
+  private purgeExpiredChallenges(): void {
+    const now = Date.now();
+    for (const [key, data] of this.challenges.entries()) {
+      if (now > data.expiresAt) {
+        this.challenges.delete(key);
+      }
     }
   }
 
@@ -149,20 +175,32 @@ export class WebAuthnService {
       userVerification: 'required',
     });
 
-    this.challenges.set('auth', options.challenge);
-    return options;
+    const challengeKey = `auth:${randomUUID()}`;
+    this.challenges.set(challengeKey, {
+      challenge: options.challenge,
+      expiresAt: Date.now() + WebAuthnService.CHALLENGE_TTL_MS,
+    });
+    this.purgeExpiredChallenges();
+    return { ...options, challengeKey };
   }
 
   async verifyAuthentication(
     response: AuthenticationResponseJSON,
     req?: Request,
+    challengeKey?: string,
   ) {
-    const expectedChallenge = this.challenges.get('auth');
-    if (!expectedChallenge) {
+    const key = challengeKey || 'auth';
+    const challengeData = this.challenges.get(key);
+    if (!challengeData) {
       throw new BadRequestException(
         'No pending authentication challenge found',
       );
     }
+    if (Date.now() > challengeData.expiresAt) {
+      this.challenges.delete(key);
+      throw new BadRequestException('Authentication challenge has expired');
+    }
+    const expectedChallenge = challengeData.challenge;
 
     const credential = await this.credentialRepository.findOne({
       where: { id: response.id },
@@ -201,7 +239,7 @@ export class WebAuthnService {
         lastUsedAt: new Date(),
       });
 
-      this.challenges.delete('auth');
+      this.challenges.delete(key);
 
       await this.auditLogService.log({
         userId: credential.userId,
@@ -212,7 +250,7 @@ export class WebAuthnService {
 
       return credential.user;
     } catch (error) {
-      this.challenges.delete('auth');
+      this.challenges.delete(key);
       throw error;
     }
   }
