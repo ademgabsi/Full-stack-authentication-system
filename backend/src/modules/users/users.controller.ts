@@ -96,7 +96,9 @@ export class UsersController {
       const header = file.buffer.slice(0, expected.length);
       const matches = expected.every((byte, i) => header[i] === byte);
       if (!matches) {
-        throw new BadRequestException('File content does not match the declared file type');
+        throw new BadRequestException(
+          'File content does not match the declared file type',
+        );
       }
     }
 

@@ -80,7 +80,7 @@ export class AuthController {
     if ('mfaRequired' in result && result.mfaRequired) {
       res.cookie('mfa_temp_token', result.tempToken!, {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/api/auth',
         secure: process.env.NODE_ENV === 'production',
         maxAge: 5 * 60 * 1000,
@@ -93,7 +93,7 @@ export class AuthController {
     if ('stepUpRequired' in result && result.stepUpRequired) {
       res.cookie('step_up_token', result.stepUpToken!, {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/api/auth',
         secure: process.env.NODE_ENV === 'production',
         maxAge: 10 * 60 * 1000,
@@ -172,7 +172,11 @@ export class AuthController {
   ) {
     const result = await this.authService.login(dto, req);
     if ('refreshToken' in result) {
-      res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
+      res.cookie(
+        'refresh_token',
+        result.refreshToken,
+        getRefreshCookieOptions(result.user?.role),
+      );
       const { refreshToken: _, ...body } = result;
       return body;
     }
@@ -202,7 +206,11 @@ export class AuthController {
       );
     }
     const result = await this.authService.verifyMfa({ ...dto, tempToken }, req);
-    res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
+    res.cookie(
+      'refresh_token',
+      result.refreshToken,
+      getRefreshCookieOptions(result.user?.role),
+    );
     res.clearCookie('mfa_temp_token', { path: '/api/auth' });
     const { refreshToken: _, ...body } = result;
     return body;
@@ -211,7 +219,7 @@ export class AuthController {
   @Public()
   @Post('mfa/verify-backup')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { ttl: 60000, limit: 10 } })
+  @Throttle({ short: { ttl: 900000, limit: 3 } })
   @ApiOperation({ summary: 'Login step 2 - verify MFA with backup code' })
   @ApiResponse({
     status: 200,
@@ -233,7 +241,11 @@ export class AuthController {
       { ...dto, tempToken },
       req,
     );
-    res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
+    res.cookie(
+      'refresh_token',
+      result.refreshToken,
+      getRefreshCookieOptions(result.user?.role),
+    );
     res.clearCookie('mfa_temp_token', { path: '/api/auth' });
     const { refreshToken: _, ...body } = result;
     return body;
@@ -262,7 +274,11 @@ export class AuthController {
       { ...dto, stepUpToken },
       req,
     );
-    res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
+    res.cookie(
+      'refresh_token',
+      result.refreshToken,
+      getRefreshCookieOptions(result.user?.role),
+    );
     res.clearCookie('step_up_token', { path: '/api/auth' });
     const { refreshToken: _, ...body } = result;
     return body;
@@ -335,7 +351,11 @@ export class AuthController {
       throw new HttpException('Missing refresh token', HttpStatus.UNAUTHORIZED);
     }
     const result = await this.authService.refreshTokens(token, req);
-    res.cookie('refresh_token', result.refreshToken, getRefreshCookieOptions(result.user?.role));
+    res.cookie(
+      'refresh_token',
+      result.refreshToken,
+      getRefreshCookieOptions(result.user?.role),
+    );
     const { refreshToken: _, ...resp } = result;
     return resp;
   }

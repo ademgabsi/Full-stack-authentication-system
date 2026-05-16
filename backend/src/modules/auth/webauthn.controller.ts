@@ -79,6 +79,7 @@ export class WebAuthnController {
       responseJson,
       dto.name,
       req,
+      dto.challengeKey,
     );
 
     const credCount = await this.webAuthnService.listCredentials(userId);
@@ -124,6 +125,7 @@ export class WebAuthnController {
     const user = await this.webAuthnService.verifyAuthentication(
       responseJson,
       req,
+      dto.challengeKey,
     );
 
     const result = await this.authService.generateTokensForUser(user, req);

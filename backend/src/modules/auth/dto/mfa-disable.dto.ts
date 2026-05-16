@@ -8,7 +8,9 @@ export class MfaDisableDto {
   @MaxLength(128)
   password: string;
 
-  @ApiPropertyOptional({ description: 'Current TOTP code (required if MFA is enabled)' })
+  @ApiPropertyOptional({
+    description: 'Current TOTP code (required if MFA is enabled)',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(6)

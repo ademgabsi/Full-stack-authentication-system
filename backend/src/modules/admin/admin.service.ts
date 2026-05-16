@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Request } from 'express';
@@ -59,6 +59,9 @@ export class AdminService {
     adminId: string,
     req?: Request,
   ) {
+    if (id === adminId) {
+      throw new ForbiddenException('Admins cannot modify their own account');
+    }
     const user = await this.usersService.findById(id);
     const result = await this.usersService.adminUpdateUser(id, dto);
 
@@ -92,6 +95,9 @@ export class AdminService {
   }
 
   async lockUser(id: string, dto: LockUserDto, adminId: string, req?: Request) {
+    if (id === adminId) {
+      throw new ForbiddenException('Admins cannot lock their own account');
+    }
     await this.usersService.findById(id);
     if (dto.locked) {
       const result = await this.usersService.lockUser(
@@ -129,6 +135,11 @@ export class AdminService {
   }
 
   async deactivateUser(id: string, adminId: string, req?: Request) {
+    if (id === adminId) {
+      throw new ForbiddenException(
+        'Admins cannot deactivate their own account',
+      );
+    }
     await this.usersService.findById(id);
     const result = await this.usersService.deactivateUser(id);
     await this.auditLogService.log({

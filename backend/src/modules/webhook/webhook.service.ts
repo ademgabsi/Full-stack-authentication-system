@@ -25,6 +25,50 @@ import {
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
 
+  private static readonly SENSITIVE_KEY_PATTERNS = [
+    /password/i,
+    /token/i,
+    /secret/i,
+    /api[_-]?key/i,
+    /auth/i,
+    /cookie/i,
+    /session/i,
+    /credit/i,
+    /ssn/i,
+    /authorization/i,
+    /bearer/i,
+    /private[_-]?key/i,
+  ];
+
+  private redactSensitiveData(data: unknown, depth = 0): unknown {
+    if (depth > 10) return '[max depth]';
+    if (data === null || data === undefined) return data;
+    if (typeof data === 'string') {
+      return data.length > 1000
+        ? data.substring(0, 1000) + '...[truncated]'
+        : data;
+    }
+    if (typeof data !== 'object') return data;
+    if (Array.isArray(data)) {
+      return data.map((item) => this.redactSensitiveData(item, depth + 1));
+    }
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(
+      data as Record<string, unknown>,
+    )) {
+      if (
+        WebhookService.SENSITIVE_KEY_PATTERNS.some((pattern) =>
+          pattern.test(key),
+        )
+      ) {
+        result[key] = '[REDACTED]';
+      } else {
+        result[key] = this.redactSensitiveData(value, depth + 1);
+      }
+    }
+    return result;
+  }
+
   constructor(
     @InjectRepository(Webhook)
     private webhookRepository: Repository<Webhook>,
@@ -202,12 +246,14 @@ export class WebhookService {
 
     const limitedWebhooks = matchingWebhooks.slice(0, 20);
     const MAX_CONCURRENT_DELIVERIES = 5;
-    for (let i = 0; i < limitedWebhooks.length; i += MAX_CONCURRENT_DELIVERIES) {
+    for (
+      let i = 0;
+      i < limitedWebhooks.length;
+      i += MAX_CONCURRENT_DELIVERIES
+    ) {
       const batch = limitedWebhooks.slice(i, i + MAX_CONCURRENT_DELIVERIES);
       await Promise.allSettled(
-        batch.map((webhook) =>
-          this.deliverWebhook(webhook, event, payload),
-        ),
+        batch.map((webhook) => this.deliverWebhook(webhook, event, payload)),
       );
     }
   }
@@ -260,14 +306,22 @@ export class WebhookService {
         await this.deliveryRepository.update(delivery.id, {
           status: DeliveryStatus.SUCCESS,
           responseStatus: response.status,
-          responseBody: responseBody.substring(0, 5000),
+          responseBody: JSON.stringify(
+            this.redactSensitiveData(
+              this.safeJsonParse(responseBody.substring(0, 5000)),
+            ),
+          ).substring(0, 5000),
           attempts: 1,
         });
       } else {
         await this.deliveryRepository.update(delivery.id, {
           status: DeliveryStatus.FAILED,
           responseStatus: response.status,
-          responseBody: responseBody.substring(0, 5000),
+          responseBody: JSON.stringify(
+            this.redactSensitiveData(
+              this.safeJsonParse(responseBody.substring(0, 5000)),
+            ),
+          ).substring(0, 5000),
           attempts: 1,
         });
         this.logger.warn(
@@ -283,6 +337,14 @@ export class WebhookService {
       this.logger.warn(
         `Webhook delivery failed: ${webhook.name} (${webhook.id}) -> ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
+    }
+  }
+
+  private safeJsonParse(str: string): unknown {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return str;
     }
   }
 

@@ -19,6 +19,7 @@ import {
   ApiBearerAuth,
   ApiResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AdminService } from './admin.service';
 import {
@@ -64,6 +65,7 @@ export class AdminController {
   @Put('users/:id')
   @ApiOperation({ summary: 'Update user (role, status)' })
   @ApiResponse({ status: 200, description: 'User updated successfully' })
+  @Throttle({ short: { ttl: 60000, limit: 10 } })
   async updateUser(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AdminUpdateUserDto,
@@ -79,6 +81,7 @@ export class AdminController {
   @Put('users/:id/lock')
   @ApiOperation({ summary: 'Lock/unlock user account' })
   @ApiResponse({ status: 200, description: 'Account lock status updated' })
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
   async lockUser(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: LockUserDto,
@@ -94,6 +97,7 @@ export class AdminController {
   @Delete('users/:id')
   @ApiOperation({ summary: 'Deactivate user account' })
   @ApiResponse({ status: 200, description: 'User deactivated' })
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
   async deactivateUser(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id') currentUserId: string,
