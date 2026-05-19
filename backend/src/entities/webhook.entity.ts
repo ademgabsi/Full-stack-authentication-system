@@ -20,6 +20,8 @@ export enum WebhookEvent {
   USER_ROLE_CHANGED = 'user.role_changed',
   USER_LOGIN = 'user.login',
   USER_LOGIN_FAILED = 'user.login_failed',
+  USER_DELETION_REQUESTED = 'user.deletion_requested',
+  USER_DELETED = 'user.deleted',
 }
 
 @Entity('webhooks')

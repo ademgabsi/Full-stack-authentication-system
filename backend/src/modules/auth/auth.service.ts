@@ -433,6 +433,19 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.scheduledDeletionAt) {
+      await this.auditLogService.log({
+        userId: user.id,
+        action: 'auth.login.failed',
+        resource: `user:${user.id}`,
+        metadata: { reason: 'account_scheduled_for_deletion' },
+        req,
+      });
+      throw new UnauthorizedException(
+        'Account scheduled for deletion. Please cancel deletion first to log in.',
+      );
+    }
+
     const isPasswordValid = await bcrypt.compare(
       dto.password,
       user.passwordHash,
@@ -810,6 +823,11 @@ export class AuthService {
       if (!user.isActive) {
         throw new UnauthorizedException('Account is deactivated');
       }
+      if (user.scheduledDeletionAt) {
+        throw new UnauthorizedException(
+          'Account scheduled for deletion. Please cancel deletion first to log in.',
+        );
+      }
       if (user.lockedUntil && user.lockedUntil > new Date()) {
         throw new UnauthorizedException('Account is temporarily locked');
       }
@@ -916,6 +934,11 @@ export class AuthService {
       }
       if (!refreshTokenEntity.user.isActive) {
         throw new ForbiddenException('Account deactivated');
+      }
+      if (refreshTokenEntity.user.scheduledDeletionAt) {
+        throw new ForbiddenException(
+          'Account scheduled for deletion. Please cancel deletion first.',
+        );
       }
 
       await manager.update(RefreshToken, refreshTokenEntity.id, {

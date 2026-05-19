@@ -24,6 +24,7 @@ const SecurityPage = lazy(() => import('@/pages/user/SecurityPage'));
 const MfaSetupPage = lazy(() => import('@/pages/user/MfaSetupPage'));
 const SessionsPage = lazy(() => import('@/pages/user/SessionsPage'));
 const PasskeysPage = lazy(() => import('@/pages/user/PasskeysPage'));
+const DeleteAccountPage = lazy(() => import('@/pages/user/DeleteAccountPage'));
 
 const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'));
 const AdminOverview = lazy(() => import('@/pages/admin/Overview'));
@@ -93,6 +94,7 @@ export const router = createBrowserRouter([
           { path: 'security/mfa/setup', element: <LazyPage Component={MfaSetupPage} /> },
           { path: 'security/sessions', element: <LazyPage Component={SessionsPage} /> },
           { path: 'security/passkeys', element: <LazyPage Component={PasskeysPage} /> },
+        { path: 'settings/delete-account', element: <LazyPage Component={DeleteAccountPage} /> },
         ],
       },
     ],

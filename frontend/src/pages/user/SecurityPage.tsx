@@ -4,7 +4,7 @@ import { useProfile } from '@/hooks/useUser';
 import { useDisableMfa, useRegenerateBackupCodes } from '@/hooks/useAuth';
 import { Link } from 'react-router';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Shield, Key, AlertTriangle, Loader2, Monitor, Fingerprint } from 'lucide-react';
+import { ArrowLeft, Shield, Key, AlertTriangle, Loader2, Monitor, Fingerprint, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -168,6 +168,26 @@ export default function SecurityPage() {
           </div>
           <Button variant="secondary" size="sm" onClick={() => navigate('/security/passkeys')}>
             Manage Passkeys
+          </Button>
+        </CardHeader>
+      </Card>
+
+      {/* Delete Account */}
+      <Card className="mb-6 border-red-200">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
+              <Trash2 className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <CardTitle>Delete Account</CardTitle>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Permanently delete your account and all associated data
+              </p>
+            </div>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/settings/delete-account')}>
+            Manage
           </Button>
         </CardHeader>
       </Card>

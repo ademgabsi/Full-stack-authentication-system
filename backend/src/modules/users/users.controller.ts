@@ -21,7 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { UsersService } from './users.service';
-import { UpdateProfileDto, ChangePasswordDto } from './dto';
+import { UpdateProfileDto, ChangePasswordDto, CancelDeletionDto } from './dto';
 import { CurrentUser } from '../../common/decorators';
 
 @ApiTags('Users')
@@ -103,5 +103,46 @@ export class UsersController {
     }
 
     return this.usersService.uploadImage(userId, file);
+  }
+
+  @Post('me/delete')
+  @ApiOperation({ summary: 'Request account deletion' })
+  @ApiResponse({
+    status: 200,
+    description: 'Confirmation code sent to email',
+  })
+  async requestDeletion(
+    @CurrentUser('id') userId: string,
+    @Req() req: Request,
+  ) {
+    return this.usersService.requestDeletion(userId, req);
+  }
+
+  @Post('me/delete/confirm')
+  @ApiOperation({ summary: 'Confirm account deletion with code' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account scheduled for deletion',
+  })
+  async confirmDeletion(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CancelDeletionDto,
+    @Req() req: Request,
+  ) {
+    return this.usersService.confirmDeletion(userId, dto.code, req);
+  }
+
+  @Post('me/delete/cancel')
+  @ApiOperation({ summary: 'Cancel account deletion with code' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account deletion cancelled',
+  })
+  async cancelDeletion(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CancelDeletionDto,
+    @Req() req: Request,
+  ) {
+    return this.usersService.cancelDeletion(userId, dto.code, req);
   }
 }
