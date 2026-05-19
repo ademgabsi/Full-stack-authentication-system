@@ -15,8 +15,7 @@ export default function DeleteAccountPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [localError, setLocalError] = useState('');
-
-  const codeSent = !!profile?.scheduledDeletionAt || false;
+  const [codeSent, setCodeSent] = useState(false);
 
   if (isLoading || !profile) {
     return (
@@ -31,6 +30,7 @@ export default function DeleteAccountPage() {
     setSuccessMessage('');
     requestDeletion.mutate(undefined, {
       onSuccess: (data) => {
+        setCodeSent(true);
         setSuccessMessage(data.message);
       },
     });
@@ -54,6 +54,7 @@ export default function DeleteAccountPage() {
     setSuccessMessage('');
     requestDeletion.mutate(undefined, {
       onSuccess: (data) => {
+        setCodeSent(true);
         setSuccessMessage(data.message);
         setShowConfirmModal(true);
       },

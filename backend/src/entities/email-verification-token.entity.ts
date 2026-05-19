@@ -16,7 +16,7 @@ export class EmailVerificationToken {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 6 })
+  @Column({ type: 'varchar', length: 255 })
   code: string;
 
   @Column({ type: 'uuid', name: 'user_id' })

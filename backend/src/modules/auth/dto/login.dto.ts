@@ -12,6 +12,7 @@ import { ClientFingerprintDto } from '../../device-fingerprint/dto/client-finger
 export class LoginDto {
   @ApiProperty({ example: 'john@example.com' })
   @IsEmail()
+  @MaxLength(255)
   email: string;
 
   @ApiProperty({ example: 'Password123!' })

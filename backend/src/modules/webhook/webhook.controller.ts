@@ -28,6 +28,7 @@ import {
 import { Roles } from '../../common/decorators';
 import { UserRole } from '../../entities/user.entity';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Admin - Webhooks')
 @ApiBearerAuth()
@@ -52,6 +53,7 @@ export class WebhookController {
   }
 
   @Get('stats')
+  @Throttle({ medium: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: 'Get webhook delivery statistics' })
   @ApiResponse({ status: 200, description: 'Returns delivery stats' })
   async getDeliveryStats() {

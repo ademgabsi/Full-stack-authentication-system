@@ -35,6 +35,7 @@ import { UserRole } from '../../entities/user.entity';
 import { CurrentUser } from '../../common/decorators';
 import { DeviceFingerprintService } from '../device-fingerprint/device-fingerprint.service';
 import { AnomalyDetectionService } from '../device-fingerprint/anomaly-detection.service';
+import { AuditLogService } from '../audit/audit.service';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -46,6 +47,7 @@ export class AdminController {
     private adminService: AdminService,
     private fingerprintService: DeviceFingerprintService,
     private anomalyDetectionService: AnomalyDetectionService,
+    private auditLogService: AuditLogService,
   ) {}
 
   @Get('users')
@@ -139,7 +141,17 @@ export class AdminController {
   @Get('users/:id/fingerprints')
   @ApiOperation({ summary: 'Get user device fingerprints' })
   @ApiResponse({ status: 200, description: 'Returns device fingerprints' })
-  async getUserFingerprints(@Param('id', ParseUUIDPipe) id: string) {
+  async getUserFingerprints(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') adminId: string,
+    @Req() req: Request,
+  ) {
+    await this.auditLogService.log({
+      userId: adminId,
+      action: 'admin.user.fingerprints_accessed',
+      resource: `user:${id}`,
+      req,
+    });
     return this.fingerprintService.findByUser(id);
   }
 

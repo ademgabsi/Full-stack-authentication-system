@@ -22,6 +22,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import { AuthService } from './auth.service';
 import {
   RegisterDto,
@@ -46,7 +47,7 @@ function getRefreshCookieOptions(userRole?: string) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict' as const,
     maxAge: isAdmin ? 2 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
-    path: '/api/auth',
+    path: '/',
   };
 }
 
@@ -113,13 +114,39 @@ export class AuthController {
       tokenResult.refreshToken,
       getRefreshCookieOptions(tokenResult.user?.role),
     );
-    const params = new URLSearchParams({
+    const oauthState = randomUUID();
+    await this.authService.storeOAuthState(oauthState, {
       accessToken: tokenResult.accessToken,
-      user: JSON.stringify(tokenResult.user),
+      refreshToken: tokenResult.refreshToken,
+      user: tokenResult.user,
     });
     return res.redirect(
-      `${frontendUrl}/auth/google/callback?${params.toString()}`,
+      `${frontendUrl}/auth/google/callback?code=${oauthState}`,
     );
+  }
+
+  @Public()
+  @Post('google/exchange')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: 'Exchange OAuth code for tokens' })
+  @ApiResponse({ status: 200, description: 'Returns access token and user data' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired code' })
+  async exchangeOAuthCode(
+    @Body('code') code: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const data = await this.authService.exchangeOAuthState(code);
+    if (!data) {
+      throw new HttpException('Invalid or expired OAuth code', HttpStatus.BAD_REQUEST);
+    }
+    res.cookie(
+      'refresh_token',
+      data.refreshToken,
+      getRefreshCookieOptions(data.user?.role),
+    );
+    const { refreshToken: _, ...body } = data;
+    return body;
   }
 
   @Public()
@@ -198,7 +225,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tempToken = req.cookies?.['mfa_temp_token'] || dto.tempToken;
+    const tempToken = req.cookies?.['mfa_temp_token'];
     if (!tempToken) {
       throw new HttpException(
         'Missing temporary token',
@@ -230,7 +257,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const tempToken = req.cookies?.['mfa_temp_token'] || dto.tempToken;
+    const tempToken = req.cookies?.['mfa_temp_token'];
     if (!tempToken) {
       throw new HttpException(
         'Missing temporary token',
@@ -266,7 +293,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const stepUpToken = req.cookies?.['step_up_token'] || dto.stepUpToken;
+    const stepUpToken = req.cookies?.['step_up_token'];
     if (!stepUpToken) {
       throw new HttpException('Missing step-up token', HttpStatus.UNAUTHORIZED);
     }
@@ -376,7 +403,7 @@ export class AuthController {
     if (token) {
       await this.authService.logout(token, userId, req);
     }
-    res.clearCookie('refresh_token', { path: '/api/auth' });
+    res.clearCookie('refresh_token', { path: '/' });
     return { message: 'Logged out successfully' };
   }
 

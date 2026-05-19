@@ -19,6 +19,10 @@ export class CaptchaService {
 
   async verify(token: string): Promise<boolean> {
     if (!this.enabled) {
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.warn('CAPTCHA verification bypassed in production mode');
+        return false;
+      }
       return true;
     }
 
