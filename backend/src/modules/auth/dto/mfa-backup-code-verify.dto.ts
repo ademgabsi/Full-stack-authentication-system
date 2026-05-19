@@ -1,13 +1,12 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, Length, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, Length, IsUUID } from 'class-validator';
 
 export class MfaBackupCodeVerifyDto {
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
-      'Temporary token received from login step 1 (also sent via cookie)',
+      'Temporary token received from login step 1 (sent via httpOnly cookie)',
   })
-  @IsOptional()
-  @IsString()
+  @IsUUID()
   tempToken: string;
 
   @ApiProperty({ description: 'Backup code' })

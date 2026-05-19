@@ -24,9 +24,12 @@ export class MfaService {
 
   verifyTotp(secret: string, token: string): boolean {
     const expected = authenticator.generate(secret);
+    const maxLen = Math.max(token.length, expected.length, 8);
+    const a = Buffer.alloc(maxLen);
+    const b = Buffer.alloc(maxLen);
+    Buffer.from(token, 'utf8').copy(a);
+    Buffer.from(expected, 'utf8').copy(b);
     if (token.length !== expected.length) return false;
-    const a = Buffer.from(token, 'utf8');
-    const b = Buffer.from(expected, 'utf8');
     return timingSafeEqual(a, b);
   }
 

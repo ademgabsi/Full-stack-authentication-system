@@ -150,7 +150,7 @@ export class UsersService {
       );
     }
 
-    const newPasswordHash = await bcrypt.hash(dto.newPassword, 10);
+    const newPasswordHash = await bcrypt.hash(dto.newPassword, 12);
     await this.userRepository.update(id, { passwordHash: newPasswordHash });
 
     await this.auditLogService.log({
@@ -391,34 +391,34 @@ export class UsersService {
   }
 
   async hardDeleteUser(id: string): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id } });
+
     await this.dataSource.transaction(async (manager) => {
       await manager.delete(DeviceFingerprint, { userId: id });
       await manager.delete(AnomalyLog, { userId: id });
       await manager.delete(StepUpChallenge, { userId: id });
-
-      const user = await manager.findOne(User, { where: { id } });
-      if (user?.image) {
-        const publicId = this.cloudinaryService.getPublicIdFromUrl(user.image);
-        if (publicId) {
-          await this.cloudinaryService.deleteImage(publicId).catch(() => {});
-        }
-      }
-
       await manager.delete(User, id);
-
-      await this.auditLogService.log({
-        userId: id,
-        action: 'auth.account.deleted',
-        resource: `user:${id}`,
-      });
-
-      this.webhookService
-        .dispatchEvent(WebhookEvent.USER_DELETED, {
-          userId: id,
-          email: user?.email,
-        })
-        .catch(() => {});
     });
+
+    if (user?.image) {
+      const publicId = this.cloudinaryService.getPublicIdFromUrl(user.image);
+      if (publicId) {
+        await this.cloudinaryService.deleteImage(publicId).catch(() => {});
+      }
+    }
+
+    await this.auditLogService.log({
+      userId: id,
+      action: 'auth.account.deleted',
+      resource: `user:${id}`,
+    });
+
+    this.webhookService
+      .dispatchEvent(WebhookEvent.USER_DELETED, {
+        userId: id,
+        email: user?.email,
+      })
+      .catch(() => {});
   }
 
   async getUsersPendingDeletion(): Promise<User[]> {

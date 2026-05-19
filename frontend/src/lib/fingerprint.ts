@@ -22,9 +22,9 @@ function getCanvasHash(): string {
     ctx.fillStyle = '#f60';
     ctx.fillRect(0, 0, 200, 50);
     ctx.fillStyle = '#069';
-    ctx.fillText('AuthSys FP v1.0', 2, 15);
+    ctx.fillText('Cwm fjordbank glyphs vext quiz', 2, 15);
     ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
-    ctx.fillText('AuthSys FP v1.0', 4, 17);
+    ctx.fillText('Cwm fjordbank glyphs vext quiz', 4, 17);
     return hashString(canvas.toDataURL());
   } catch {
     return '';

@@ -9,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomUUID, randomInt, randomBytes, createHash } from 'crypto';
+import { randomUUID, randomInt, randomBytes, createHash, createHmac } from 'crypto';
 import { Request } from 'express';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -49,6 +49,7 @@ import {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly oauthStateStore = new Map<string, { data: any; expiresAt: number }>();
 
   constructor(
     @InjectRepository(User)
@@ -83,6 +84,45 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private readonly jwtKeyVersion = process.env.JWT_KEY_VERSION || 'v1';
+  private readonly jwtKeyRegistry: Map<string, string> = new Map();
+
+  private getJwtSigningKey(): { key: string; kid: string } {
+    const secret = this.configService.jwtSecret;
+    const kid = `${this.jwtKeyVersion}-${createHash('sha256').update(secret).digest('hex').substring(0, 8)}`;
+    this.jwtKeyRegistry.set(kid, secret);
+    return { key: secret, kid };
+  }
+
+  private resolveJwtKey(kid: string): string | null {
+    return this.jwtKeyRegistry.get(kid) ?? null;
+  }
+
+  private hashEmailCode(code: string): string {
+    return createHmac('sha256', this.configService.jwtSecret)
+      .update(code)
+      .digest('hex');
+  }
+
+  async storeOAuthState(code: string, data: { accessToken: string; refreshToken: string; user: any }): Promise<void> {
+    this.oauthStateStore.set(code, {
+      data,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+    setTimeout(() => this.oauthStateStore.delete(code), 5 * 60 * 1000);
+  }
+
+  async exchangeOAuthState(code: string): Promise<{ accessToken: string; refreshToken: string; user: any } | null> {
+    const entry = this.oauthStateStore.get(code);
+    if (!entry) return null;
+    if (entry.expiresAt < Date.now()) {
+      this.oauthStateStore.delete(code);
+      return null;
+    }
+    this.oauthStateStore.delete(code);
+    return entry.data;
   }
 
   private parseDeviceInfo(req?: Request): string {
@@ -244,9 +284,10 @@ export class AuthService {
     await this.userRepository.save(user);
 
     const code = this.generateSecureToken();
+    const hashedCode = this.hashEmailCode(code);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const tokenEntity = this.emailVerificationRepository.create({
-      code,
+      code: hashedCode,
       userId: user.id,
       expiresAt,
     });
@@ -286,8 +327,9 @@ export class AuthService {
       throw new BadRequestException('Invalid verification code');
     }
 
+    const hashedCode = this.hashEmailCode(dto.code);
     const verificationToken = await this.emailVerificationRepository.findOne({
-      where: { code: dto.code, userId: user.id },
+      where: { code: hashedCode, userId: user.id },
     });
     if (!verificationToken) {
       throw new BadRequestException('Invalid verification code');
@@ -343,10 +385,11 @@ export class AuthService {
     await this.emailVerificationRepository.delete({ userId: user.id });
 
     const code = this.generateSecureToken();
+    const hashedCode = this.hashEmailCode(code);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await this.emailVerificationRepository.save(
       this.emailVerificationRepository.create({
-        code,
+        code: hashedCode,
         userId: user.id,
         expiresAt,
       }),
@@ -422,7 +465,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.isActive) {
+    if (!user.isActive && !user.scheduledDeletionAt) {
       await this.auditLogService.log({
         userId: user.id,
         action: 'auth.login.failed',
@@ -431,19 +474,6 @@ export class AuthService {
         req,
       });
       throw new UnauthorizedException('Invalid credentials');
-    }
-
-    if (user.scheduledDeletionAt) {
-      await this.auditLogService.log({
-        userId: user.id,
-        action: 'auth.login.failed',
-        resource: `user:${user.id}`,
-        metadata: { reason: 'account_scheduled_for_deletion' },
-        req,
-      });
-      throw new UnauthorizedException(
-        'Account scheduled for deletion. Please cancel deletion first to log in.',
-      );
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -820,13 +850,8 @@ export class AuthService {
         throw new BadRequestException('Account conflict detected');
       }
 
-      if (!user.isActive) {
+      if (!user.isActive && !user.scheduledDeletionAt) {
         throw new UnauthorizedException('Account is deactivated');
-      }
-      if (user.scheduledDeletionAt) {
-        throw new UnauthorizedException(
-          'Account scheduled for deletion. Please cancel deletion first to log in.',
-        );
       }
       if (user.lockedUntil && user.lockedUntil > new Date()) {
         throw new UnauthorizedException('Account is temporarily locked');
@@ -932,13 +957,8 @@ export class AuthService {
       if (refreshTokenEntity.expiresAt < new Date()) {
         throw new UnauthorizedException('Refresh token has expired');
       }
-      if (!refreshTokenEntity.user.isActive) {
+      if (!refreshTokenEntity.user.isActive && !refreshTokenEntity.user.scheduledDeletionAt) {
         throw new ForbiddenException('Account deactivated');
-      }
-      if (refreshTokenEntity.user.scheduledDeletionAt) {
-        throw new ForbiddenException(
-          'Account scheduled for deletion. Please cancel deletion first.',
-        );
       }
 
       await manager.update(RefreshToken, refreshTokenEntity.id, {
@@ -1190,11 +1210,13 @@ export class AuthService {
       role: user.role,
     };
 
+    const { key, kid } = this.getJwtSigningKey();
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.jwtSecret,
+      secret: key,
       expiresIn: this.configService.jwtExpiration as any,
       issuer: 'authsystem-api',
       audience: 'authsystem-app',
+      keyid: kid,
     });
 
     const refreshToken = randomUUID();
@@ -1235,11 +1257,13 @@ export class AuthService {
       role: user.role,
     };
 
+    const { key, kid } = this.getJwtSigningKey();
     const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.jwtSecret,
+      secret: key,
       expiresIn: this.configService.jwtExpiration as any,
       issuer: 'authsystem-api',
       audience: 'authsystem-app',
+      keyid: kid,
     });
 
     const refreshToken = randomUUID();

@@ -13,6 +13,7 @@ import { IsStrongPassword } from '../../../common/validators/is-strong-password'
 export class RegisterDto {
   @ApiProperty({ example: 'john@example.com' })
   @IsEmail()
+  @MaxLength(255)
   email: string;
 
   @ApiProperty({ example: 'Password123!' })

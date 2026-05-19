@@ -4,13 +4,11 @@ import {
   IsNotEmpty,
   Length,
   Matches,
-  IsOptional,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class StepUpVerifyDto {
-  @ApiPropertyOptional({ description: 'Step-up token (also sent via cookie)' })
-  @IsOptional()
+  @ApiProperty({ description: 'Step-up token (sent via httpOnly cookie)' })
   @IsUUID()
   stepUpToken: string;
 
