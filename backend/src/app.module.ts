@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import Redis from 'ioredis';
 import { AppConfigModule } from './config/config.module';
@@ -80,6 +81,7 @@ function getSslConfig(sslEnabled: boolean) {
     AuditModule,
     CaptchaModule,
     BreachPasswordModule,
+    ScheduleModule.forRoot(),
     AuthModule,
     WebAuthnModule,
     UsersModule,

@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { User, UpdateProfileRequest, ChangePasswordRequest, UploadImageResponse } from '@/types';
+import type { User, UpdateProfileRequest, ChangePasswordRequest, UploadImageResponse, MessageResponse } from '@/types';
 
 export const usersApi = {
   getProfile: () =>
@@ -9,7 +9,7 @@ export const usersApi = {
     apiClient.put<User>('/users/me', data).then((r) => r.data),
 
   changePassword: (data: ChangePasswordRequest) =>
-    apiClient.put<{ message: string }>('/users/me/password', data).then((r) => r.data),
+    apiClient.put<MessageResponse>('/users/me/password', data).then((r) => r.data),
 
   uploadImage: (file: File) => {
     const formData = new FormData();
@@ -18,4 +18,13 @@ export const usersApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then((r) => r.data);
   },
+
+  requestDeletion: () =>
+    apiClient.post<MessageResponse>('/users/me/delete').then((r) => r.data),
+
+  confirmDeletion: (code: string) =>
+    apiClient.post<MessageResponse>('/users/me/delete/confirm', { code }).then((r) => r.data),
+
+  cancelDeletion: (code: string) =>
+    apiClient.post<MessageResponse>('/users/me/delete/cancel', { code }).then((r) => r.data),
 };

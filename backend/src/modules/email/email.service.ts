@@ -147,4 +147,27 @@ export class EmailService {
       throw error;
     }
   }
+
+  async sendAccountDeletionEmail(email: string, code: string): Promise<void> {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Account Deletion Request',
+        template: 'account-deletion',
+        context: {
+          code,
+          appName: this.configService.smtpConfig.fromName,
+        },
+      });
+      this.logger.log(
+        `Account deletion email sent to ${this.redactEmail(email)}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send account deletion email to ${this.redactEmail(email)}`,
+        error,
+      );
+      throw error;
+    }
+  }
 }

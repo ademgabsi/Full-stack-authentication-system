@@ -9,6 +9,8 @@ export interface User {
   isVerified: boolean;
   lockedUntil: string | null;
   lastLogin: string | null;
+  scheduledDeletionAt: string | null;
+  deletionRequestedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,4 +27,8 @@ export interface ChangePasswordRequest {
 
 export interface UploadImageResponse {
   image: string;
+}
+
+export interface MessageResponse {
+  message: string;
 }

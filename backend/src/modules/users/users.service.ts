@@ -5,16 +5,25 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Request } from 'express';
 import { User, UserRole } from '../../entities/user.entity';
+import { EmailVerificationToken } from '../../entities/email-verification-token.entity';
+import { RefreshToken } from '../../entities/refresh-token.entity';
+import { DeviceFingerprint } from '../../entities/device-fingerprint.entity';
+import { AnomalyLog } from '../../entities/anomaly-log.entity';
+import { StepUpChallenge } from '../../entities/step-up-challenge.entity';
+import { WebAuthnCredential } from '../../entities/webauthn-credential.entity';
+import { PasswordReset } from '../../entities/password-reset.entity';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { AuditLogService } from '../audit/audit.service';
 import { WebhookService } from '../webhook/webhook.service';
+import { EmailService } from '../email/email.service';
 import { WebhookEvent } from '../../entities/webhook.entity';
 import { UpdateProfileDto, ChangePasswordDto } from './dto';
 import { BreachPasswordService } from '../auth/breach-password.service';
+import { randomInt, createHash } from 'crypto';
 
 @Injectable()
 export class UsersService {
@@ -23,11 +32,35 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(EmailVerificationToken)
+    private emailVerificationRepository: Repository<EmailVerificationToken>,
+    @InjectRepository(RefreshToken)
+    private refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(DeviceFingerprint)
+    private deviceFingerprintRepository: Repository<DeviceFingerprint>,
+    @InjectRepository(AnomalyLog)
+    private anomalyLogRepository: Repository<AnomalyLog>,
+    @InjectRepository(StepUpChallenge)
+    private stepUpChallengeRepository: Repository<StepUpChallenge>,
+    @InjectRepository(WebAuthnCredential)
+    private webauthnCredentialRepository: Repository<WebAuthnCredential>,
+    @InjectRepository(PasswordReset)
+    private passwordResetRepository: Repository<PasswordReset>,
+    private dataSource: DataSource,
     private cloudinaryService: CloudinaryService,
     private auditLogService: AuditLogService,
     private breachService: BreachPasswordService,
     private webhookService: WebhookService,
+    private emailService: EmailService,
   ) {}
+
+  private generateCode(): string {
+    return String(randomInt(100000, 1000000));
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
 
   async findById(id: string): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
@@ -223,6 +256,177 @@ export class UsersService {
   async deactivateUser(id: string): Promise<{ message: string }> {
     await this.userRepository.update(id, { isActive: false });
     return { message: 'User deactivated successfully' };
+  }
+
+  async requestDeletion(
+    id: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    const user = await this.findById(id);
+
+    const code = this.generateCode();
+    const hashedCode = this.hashToken(code);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.emailVerificationRepository.save(
+      this.emailVerificationRepository.create({
+        code: hashedCode,
+        userId: id,
+        expiresAt,
+      }),
+    );
+
+    this.emailService
+      .sendAccountDeletionEmail(user.email, code)
+      .catch(() => {});
+
+    if (user.scheduledDeletionAt) {
+      return {
+        message:
+          'Confirmation code sent to your email. Use it to cancel the deletion.',
+      };
+    }
+
+    return { message: 'Confirmation code sent to your email' };
+  }
+
+  async confirmDeletion(
+    id: string,
+    code: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    const user = await this.findById(id);
+
+    const hashedCode = this.hashToken(code);
+    const verificationToken = await this.emailVerificationRepository.findOne({
+      where: { userId: id, code: hashedCode },
+    });
+
+    if (!verificationToken) {
+      throw new BadRequestException('Invalid confirmation code');
+    }
+    if (verificationToken.expiresAt < new Date()) {
+      await this.emailVerificationRepository.delete(verificationToken.id);
+      throw new BadRequestException('Confirmation code has expired');
+    }
+
+    const scheduledDeletionAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    await this.userRepository.update(id, {
+      scheduledDeletionAt,
+      deletionRequestedAt: new Date(),
+      isActive: false,
+    });
+
+    await this.emailVerificationRepository.delete(verificationToken.id);
+
+    await this.refreshTokenRepository.update(
+      { userId: id, isRevoked: false },
+      { isRevoked: true },
+    );
+
+    await this.auditLogService.log({
+      userId: id,
+      action: 'auth.account.deletion_requested',
+      resource: `user:${id}`,
+      req,
+    });
+
+    this.webhookService
+      .dispatchEvent(WebhookEvent.USER_DELETION_REQUESTED, {
+        userId: id,
+        email: user.email,
+        scheduledDeletionAt: scheduledDeletionAt.toISOString(),
+      })
+      .catch(() => {});
+
+    return {
+      message:
+        'Account scheduled for deletion in 14 days. You can cancel this during that period.',
+    };
+  }
+
+  async cancelDeletion(
+    id: string,
+    code: string,
+    req?: Request,
+  ): Promise<{ message: string }> {
+    const user = await this.findById(id);
+
+    if (!user.scheduledDeletionAt) {
+      throw new BadRequestException(
+        'No deletion request found for this account',
+      );
+    }
+
+    const hashedCode = this.hashToken(code);
+    const verificationToken = await this.emailVerificationRepository.findOne({
+      where: { userId: id, code: hashedCode },
+    });
+
+    if (!verificationToken) {
+      throw new BadRequestException('Invalid confirmation code');
+    }
+    if (verificationToken.expiresAt < new Date()) {
+      await this.emailVerificationRepository.delete(verificationToken.id);
+      throw new BadRequestException('Confirmation code has expired');
+    }
+
+    await this.userRepository.update(id, {
+      scheduledDeletionAt: null!,
+      deletionRequestedAt: null!,
+      isActive: true,
+    });
+
+    await this.emailVerificationRepository.delete(verificationToken.id);
+
+    await this.auditLogService.log({
+      userId: id,
+      action: 'auth.account.deletion_cancelled',
+      resource: `user:${id}`,
+      req,
+    });
+
+    return { message: 'Account deletion cancelled' };
+  }
+
+  async hardDeleteUser(id: string): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(DeviceFingerprint, { userId: id });
+      await manager.delete(AnomalyLog, { userId: id });
+      await manager.delete(StepUpChallenge, { userId: id });
+
+      const user = await manager.findOne(User, { where: { id } });
+      if (user?.image) {
+        const publicId = this.cloudinaryService.getPublicIdFromUrl(user.image);
+        if (publicId) {
+          await this.cloudinaryService.deleteImage(publicId).catch(() => {});
+        }
+      }
+
+      await manager.delete(User, id);
+
+      await this.auditLogService.log({
+        userId: id,
+        action: 'auth.account.deleted',
+        resource: `user:${id}`,
+      });
+
+      this.webhookService
+        .dispatchEvent(WebhookEvent.USER_DELETED, {
+          userId: id,
+          email: user?.email,
+        })
+        .catch(() => {});
+    });
+  }
+
+  async getUsersPendingDeletion(): Promise<User[]> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .where('user.scheduledDeletionAt IS NOT NULL')
+      .andWhere('user.scheduledDeletionAt <= :now', { now: new Date() })
+      .getMany();
   }
 
   sanitizeUser(user: User): Partial<User> {

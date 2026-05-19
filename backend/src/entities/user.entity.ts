@@ -69,6 +69,12 @@ export class User {
   @Column({ type: 'timestamp', name: 'last_login', nullable: true })
   lastLogin: Date;
 
+  @Column({ type: 'timestamp', name: 'scheduled_deletion_at', nullable: true })
+  scheduledDeletionAt: Date;
+
+  @Column({ type: 'timestamp', name: 'deletion_requested_at', nullable: true })
+  deletionRequestedAt: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
