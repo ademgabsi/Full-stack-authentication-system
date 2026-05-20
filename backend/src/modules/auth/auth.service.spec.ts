@@ -270,7 +270,7 @@ describe('AuthService', () => {
 
       expect(result).toHaveProperty('userId');
       expect(result).toHaveProperty('message');
-      expect(result.message).toContain('Registration successful');
+      expect(result.message).toContain('verification code has been sent');
       expect(mockUserRepo.create).toHaveBeenCalled();
       expect(mockUserRepo.save).toHaveBeenCalled();
       expect(mockEmailService.sendVerificationEmail).toHaveBeenCalled();
