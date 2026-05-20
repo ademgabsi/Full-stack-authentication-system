@@ -50,6 +50,16 @@ function getSslConfig(sslEnabled: boolean) {
         entities: [__dirname + '/entities/*.entity{.ts,.js}'],
         synchronize: configService.dbConfig.synchronize,
         autoLoadEntities: true,
+        extra: {
+          connectionTimeoutMillis: 15000,
+          idleTimeoutMillis: 60000,
+          max: 10,
+          keepAlive: true,
+          keepAliveInitialDelayMillis: 10000,
+        },
+        poolErrorHandler: (err: Error) => {
+          console.error('Database pool error:', err.message);
+        },
       }),
     }),
     ThrottlerModule.forRootAsync({

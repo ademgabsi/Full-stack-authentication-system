@@ -24,7 +24,7 @@ export function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-export type ErrorCategory = 'server' | 'client' | 'unknown';
+export type ErrorCategory = 'server' | 'client' | 'network' | 'unknown';
 
 export interface ErrorInfo {
   category: ErrorCategory;
@@ -55,7 +55,7 @@ export function getErrorInfo(err: unknown): ErrorInfo {
     }
   }
   if (err && typeof err === 'object' && 'request' in err) {
-    return { category: 'client', message: 'Network error. Please check your connection.' };
+    return { category: 'network', message: 'Network error. Please check your connection.' };
   }
   if (err instanceof Error) {
     return { category: 'client', message: err.message };

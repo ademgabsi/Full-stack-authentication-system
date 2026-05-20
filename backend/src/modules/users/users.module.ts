@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PassportModule } from '@nestjs/passport';
 import { User } from '../../entities/user.entity';
 import { EmailVerificationToken } from '../../entities/email-verification-token.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
@@ -27,6 +28,7 @@ import { EmailModule } from '../email/email.module';
       WebAuthnCredential,
       PasswordReset,
     ]),
+    PassportModule,
     CloudinaryModule,
     WebhookModule,
     EmailModule,

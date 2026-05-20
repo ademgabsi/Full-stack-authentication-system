@@ -11,7 +11,6 @@ export function AuthGuard() {
   const login = useAuthStore((s) => s.login);
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const logout = useAuthStore((s) => s.logout);
-  const user = useAuthStore((s) => s.user);
   const location = useLocation();
 
   const [refreshing, setRefreshing] = useState(
