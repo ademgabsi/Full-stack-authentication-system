@@ -36,6 +36,7 @@ import {
   MfaBackupCodeVerifyDto,
   VerifyEmailDto,
   StepUpVerifyDto,
+  ExchangeOAuthCodeDto,
 } from './dto';
 import { CurrentUser, Public } from '../../common/decorators';
 import { AppConfigService } from '../../config/app-config.service';
@@ -130,15 +131,21 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: 'Exchange OAuth code for tokens' })
-  @ApiResponse({ status: 200, description: 'Returns access token and user data' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns access token and user data',
+  })
   @ApiResponse({ status: 400, description: 'Invalid or expired code' })
   async exchangeOAuthCode(
-    @Body('code') code: string,
+    @Body() dto: ExchangeOAuthCodeDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const data = await this.authService.exchangeOAuthState(code);
+    const data = await this.authService.exchangeOAuthState(dto.code);
     if (!data) {
-      throw new HttpException('Invalid or expired OAuth code', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Invalid or expired OAuth code',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     res.cookie(
       'refresh_token',

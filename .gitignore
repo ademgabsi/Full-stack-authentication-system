@@ -33,3 +33,6 @@ coverage/
 # Temp
 .tmp/
 .temp/
+
+
+VULNERABILITY_REMEDIATION_PLAN.md

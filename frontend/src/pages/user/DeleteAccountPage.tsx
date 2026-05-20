@@ -176,10 +176,12 @@ export default function DeleteAccountPage() {
                       label="Confirmation Code"
                       id="code"
                       type="text"
-                      placeholder="Enter the code sent to your email"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="Enter the 6-digit code sent to your email"
                       value={code}
                       onChange={(e) => {
-                        setCode(e.target.value);
+                        setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
                         setLocalError('');
                       }}
                       error={localError}
@@ -244,10 +246,12 @@ export default function DeleteAccountPage() {
             label="Confirmation Code"
             id="cancel-code"
             type="text"
-            placeholder="Enter the code sent to your email"
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="Enter the 6-digit code sent to your email"
             value={code}
             onChange={(e) => {
-              setCode(e.target.value);
+              setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
               setLocalError('');
             }}
             error={localError}

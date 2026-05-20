@@ -21,6 +21,11 @@ const categoryConfig: Record<
     containerClass: 'bg-amber-50 border-amber-200 text-amber-800',
     labelClass: 'bg-amber-100 text-amber-700',
   },
+  network: {
+    label: 'Network Error',
+    containerClass: 'bg-amber-50 border-amber-200 text-amber-800',
+    labelClass: 'bg-amber-100 text-amber-700',
+  },
   unknown: {
     label: 'Error',
     containerClass: 'bg-red-50 border-red-200 text-red-800',

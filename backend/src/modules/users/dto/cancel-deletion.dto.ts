@@ -1,9 +1,13 @@
-import { IsString, MinLength } from 'class-validator';
+import { IsString, Length, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CancelDeletionDto {
-  @ApiProperty({ description: 'Confirmation code sent to email' })
+  @ApiProperty({
+    description: '6-digit confirmation code sent to email',
+    example: '123456',
+  })
   @IsString()
-  @MinLength(1)
+  @Length(6, 6)
+  @Matches(/^\d{6}$/)
   code: string;
 }

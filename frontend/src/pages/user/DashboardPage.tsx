@@ -8,10 +8,21 @@ import { Spinner, ErrorBanner } from '@/components/ui';
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
-  const { data: profile, isLoading, isError, error } = useProfile();
+  const { data: profile, isLoading, isError, error, refetch } = useProfile();
 
   if (isError) {
-    return <ErrorBanner error={error} />;
+    return (
+      <div className="mb-4">
+        <ErrorBanner error={error} />
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   if (isLoading || !profile) {

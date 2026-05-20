@@ -1,48 +1,64 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuthStore } from '@/stores/auth.store';
-import type { AuthUser } from '@/types';
+import { authApi } from '@/api/auth.api';
 
 export default function GoogleCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const setTempToken = useAuthStore((s) => s.setTempToken);
-  const setStepUpToken = useAuthStore((s) => s.setStepUpToken);
+  const [error, setError] = useState<string | null>(null);
+  const exchanged = useRef(false);
 
   useEffect(() => {
-    const accessToken = searchParams.get('accessToken');
-    const userParam = searchParams.get('user');
+    const code = searchParams.get('code');
     const mfaRequired = searchParams.get('mfaRequired');
     const stepUpRequired = searchParams.get('stepUpRequired');
 
     if (mfaRequired === 'true') {
-      setTempToken(null);
-      setStepUpToken(null);
       navigate('/mfa/verify', { replace: true });
       return;
     }
 
     if (stepUpRequired === 'true') {
-      setStepUpToken(null);
-      setTempToken(null);
       navigate('/step-up/verify', { replace: true });
       return;
     }
 
-    if (!accessToken || !userParam) {
+    if (!code) {
       navigate('/login', { replace: true });
       return;
     }
 
-    try {
-      const user: AuthUser = JSON.parse(userParam);
-      login(accessToken, user);
-      navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
-    } catch {
-      navigate('/login', { replace: true });
-    }
-  }, [searchParams, navigate, login, setTempToken, setStepUpToken]);
+    if (exchanged.current) return;
+    exchanged.current = true;
+
+    authApi
+      .exchangeOAuthCode(code)
+      .then((data) => {
+        login(data.accessToken, data.user);
+        navigate(
+          data.user?.role === 'admin' ? '/admin' : '/dashboard',
+          { replace: true },
+        );
+      })
+      .catch(() => {
+        setError('Google sign-in failed. Please try again.');
+      });
+  }, [searchParams, navigate, login]);
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <a href="/login" className="text-primary-600 hover:text-primary-700">
+            Back to login
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen">

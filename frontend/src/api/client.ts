@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api`,
-  timeout: 10000,
+  timeout: 20000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -42,8 +42,10 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 const redirectToLogin = () => {
-  window.history.replaceState({}, '', '/login');
-  window.dispatchEvent(new PopStateEvent('popstate'));
+  const currentPath = window.location.pathname;
+  if (currentPath !== '/login') {
+    window.location.href = '/login';
+  }
 };
 
 apiClient.interceptors.response.use(
