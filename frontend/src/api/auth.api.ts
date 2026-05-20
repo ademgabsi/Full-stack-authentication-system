@@ -1,5 +1,6 @@
 import apiClient from './client';
 import type {
+  AuthUser,
   RegisterRequest,
   RegisterResponse,
   LoginRequest,
@@ -77,17 +78,20 @@ export const authApi = {
   revokeAllSessions: () =>
     apiClient.delete<MessageResponse>('/auth/sessions').then((r) => r.data),
 
-  webauthnRegistrationOptions: () =>
-    apiClient.post<PublicKeyCredentialCreationOptionsJSON>('/auth/webauthn/register/options').then((r) => r.data),
+  exchangeOAuthCode: (code: string) =>
+    apiClient.post<{ accessToken: string; user: AuthUser }>('/auth/google/exchange', { code }).then((r) => r.data),
 
-  webauthnRegistrationVerify: (response: string, name?: string) =>
-    apiClient.post<{ message: string; credential: { id: string; name: string; createdAt: string } }>('/auth/webauthn/register/verify', { response, name }).then((r) => r.data),
+  webauthnRegistrationOptions: () =>
+    apiClient.post<PublicKeyCredentialCreationOptionsJSON & { challengeKey: string }>('/auth/webauthn/register/options').then((r) => r.data),
+
+  webauthnRegistrationVerify: (response: string, challengeKey: string, name?: string) =>
+    apiClient.post<{ message: string; credential: { id: string; name: string; createdAt: string } }>('/auth/webauthn/register/verify', { response, challengeKey, name }).then((r) => r.data),
 
   webauthnAuthenticationOptions: (email?: string) =>
-    apiClient.post<PublicKeyCredentialRequestOptionsJSON>('/auth/webauthn/login/options', { email }).then((r) => r.data),
+    apiClient.post<PublicKeyCredentialRequestOptionsJSON & { challengeKey: string }>('/auth/webauthn/login/options', { email }).then((r) => r.data),
 
-  webauthnAuthenticationVerify: (response: string) =>
-    apiClient.post<LoginResponse>('/auth/webauthn/login/verify', { response }).then((r) => r.data),
+  webauthnAuthenticationVerify: (response: string, challengeKey: string) =>
+    apiClient.post<LoginResponse>('/auth/webauthn/login/verify', { response, challengeKey }).then((r) => r.data),
 
   getWebAuthnCredentials: () =>
     apiClient.get<WebAuthnCredential[]>('/auth/webauthn/credentials').then((r) => r.data),

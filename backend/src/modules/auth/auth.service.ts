@@ -9,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomUUID, randomInt, randomBytes, createHash, createHmac } from 'crypto';
+import { randomUUID, randomInt, createHash, createHmac } from 'crypto';
 import { Request } from 'express';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -78,9 +78,7 @@ export class AuthService {
     return String(randomInt(100000, 1000000));
   }
 
-  private generateSecureToken(): string {
-    return randomBytes(32).toString('hex');
-  }
+  
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
@@ -283,7 +281,7 @@ export class AuthService {
     });
     await this.userRepository.save(user);
 
-    const code = this.generateSecureToken();
+    const code = this.generateCode();
     const hashedCode = this.hashEmailCode(code);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const tokenEntity = this.emailVerificationRepository.create({
@@ -384,7 +382,7 @@ export class AuthService {
 
     await this.emailVerificationRepository.delete({ userId: user.id });
 
-    const code = this.generateSecureToken();
+    const code = this.generateCode();
     const hashedCode = this.hashEmailCode(code);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await this.emailVerificationRepository.save(
@@ -1016,7 +1014,7 @@ export class AuthService {
 
     await this.passwordResetRepository.delete({ userId: user.id });
 
-    const code = this.generateSecureToken();
+    const code = this.generateCode();
     const hashedCode = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await this.passwordResetRepository.save(

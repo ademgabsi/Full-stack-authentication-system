@@ -10,3 +10,4 @@ export * from './mfa-backup-code-verify.dto';
 export * from './verify-email.dto';
 export * from './webauthn.dto';
 export * from './step-up-verify.dto';
+export * from './exchange-oauth-code.dto';

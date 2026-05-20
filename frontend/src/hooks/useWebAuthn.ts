@@ -10,8 +10,9 @@ export function useWebAuthnRegister() {
   return useMutation({
     mutationFn: async (name?: string) => {
       const options = await authApi.webauthnRegistrationOptions();
-      const response = await startRegistration({ optionsJSON: options });
-      return authApi.webauthnRegistrationVerify(JSON.stringify(response), name);
+      const { challengeKey, ...optionsJSON } = options;
+      const response = await startRegistration({ optionsJSON });
+      return authApi.webauthnRegistrationVerify(JSON.stringify(response), challengeKey, name);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webauthn-credentials'] });
@@ -26,8 +27,9 @@ export function useWebAuthnLogin() {
   return useMutation({
     mutationFn: async (email?: string) => {
       const options = await authApi.webauthnAuthenticationOptions(email);
-      const response = await startAuthentication({ optionsJSON: options });
-      return authApi.webauthnAuthenticationVerify(JSON.stringify(response));
+      const { challengeKey, ...optionsJSON } = options;
+      const response = await startAuthentication({ optionsJSON });
+      return authApi.webauthnAuthenticationVerify(JSON.stringify(response), challengeKey);
     },
     onSuccess: (response) => {
       login(response.accessToken, response.user);

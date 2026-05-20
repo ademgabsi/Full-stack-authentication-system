@@ -42,8 +42,10 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 const redirectToLogin = () => {
-  window.history.replaceState({}, '', '/login');
-  window.dispatchEvent(new PopStateEvent('popstate'));
+  const currentPath = window.location.pathname;
+  if (currentPath !== '/login') {
+    window.location.href = '/login';
+  }
 };
 
 apiClient.interceptors.response.use(
