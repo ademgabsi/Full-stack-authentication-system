@@ -5,9 +5,11 @@ import { useAuthStore } from '@/stores/auth.store';
 import type { UpdateProfileRequest, ChangePasswordRequest } from '@/types';
 
 export function useProfile() {
+  const accessToken = useAuthStore((s) => s.accessToken);
   return useQuery({
     queryKey: ['profile'],
     queryFn: () => usersApi.getProfile(),
+    enabled: !!accessToken,
   });
 }
 
