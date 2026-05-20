@@ -8,9 +8,6 @@ export function AuthGuard() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const accessToken = useAuthStore((s) => s.accessToken);
   const isAdmin = useAuthStore((s) => s.isAdmin);
-  const login = useAuthStore((s) => s.login);
-  const setAccessToken = useAuthStore((s) => s.setAccessToken);
-  const logout = useAuthStore((s) => s.logout);
   const location = useLocation();
 
   const [refreshing, setRefreshing] = useState(
@@ -19,11 +16,13 @@ export function AuthGuard() {
 
   useEffect(() => {
     if (!isAuthenticated || accessToken) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRefreshing(false);
       return;
     }
 
     let cancelled = false;
+    const { login, setAccessToken, logout } = useAuthStore.getState();
 
     authApi
       .refreshToken()

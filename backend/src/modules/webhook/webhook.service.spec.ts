@@ -298,15 +298,17 @@ describe('WebhookService', () => {
         Promise.resolve(new Response('OK', { status: 200 })),
       ) as jest.Mock;
 
-      await service.dispatchEvent(WebhookEvent.USER_REGISTERED, {
-        userId: 'user-1',
-      });
+      try {
+        await service.dispatchEvent(WebhookEvent.USER_REGISTERED, {
+          userId: 'user-1',
+        });
 
-      expect(mockWebhookRepo.find).toHaveBeenCalledWith({
-        where: { isActive: true },
-      });
-
-      global.fetch = originalFetch;
+        expect(mockWebhookRepo.find).toHaveBeenCalledWith({
+          where: { isActive: true },
+        });
+      } finally {
+        global.fetch = originalFetch;
+      }
     });
   });
 });

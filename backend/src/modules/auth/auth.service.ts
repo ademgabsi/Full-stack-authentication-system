@@ -317,7 +317,7 @@ export class AuthService {
 
     return {
       message:
-        'Registration successful. Please check your email for the verification code.',
+        'If this email is not already registered, a verification code has been sent.',
       userId: user.id,
     };
   }

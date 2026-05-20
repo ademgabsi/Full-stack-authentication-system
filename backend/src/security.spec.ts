@@ -235,9 +235,8 @@ describe('Security Tests', () => {
         fullName: 'User',
       });
 
-      // Both should return similar wording that doesn't reveal existence
-      expect(existingResult.message).toContain('If this email');
-      expect(newResult.message).not.toContain('If this email');
+      // Both should return the same generic wording that doesn't reveal existence
+      expect(existingResult.message).toBe(newResult.message);
     });
 
     it('should not reveal whether email is registered during login', async () => {
