@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { AdminService } from './admin.service';
 import { UsersService } from '../users/users.service';
 import { User, UserRole } from '../../entities/user.entity';
@@ -48,6 +47,7 @@ const mockUsersService = {
   findAll: jest.fn(),
   findById: jest.fn(),
   sanitizeUser: jest.fn((u: User) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, mfaSecret, mfaBackupCodes, ...rest } = u;
     return rest;
   }),
@@ -71,8 +71,6 @@ const mockWebhookService = {
 
 describe('AdminService', () => {
   let service: AdminService;
-  let usersService: typeof mockUsersService;
-  let auditLogService: typeof mockAuditLogService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -90,8 +88,6 @@ describe('AdminService', () => {
     }).compile();
 
     service = module.get<AdminService>(AdminService);
-    usersService = module.get(UsersService);
-    auditLogService = module.get(AuditLogService);
   });
 
   describe('listUsers', () => {
@@ -108,8 +104,18 @@ describe('AdminService', () => {
 
     it('should pass search and role filters', async () => {
       mockUsersService.findAll.mockResolvedValue({ users: [], total: 0 });
-      await service.listUsers({ page: 1, limit: 10, search: 'john', role: UserRole.ADMIN });
-      expect(mockUsersService.findAll).toHaveBeenCalledWith(1, 10, 'john', UserRole.ADMIN);
+      await service.listUsers({
+        page: 1,
+        limit: 10,
+        search: 'john',
+        role: UserRole.ADMIN,
+      });
+      expect(mockUsersService.findAll).toHaveBeenCalledWith(
+        1,
+        10,
+        'john',
+        UserRole.ADMIN,
+      );
     });
   });
 
@@ -123,14 +129,20 @@ describe('AdminService', () => {
 
   describe('updateUser', () => {
     it('should throw ForbiddenException when admin modifies self', async () => {
-      await expect(service.updateUser('admin-1', {}, 'admin-1')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.updateUser('admin-1', {}, 'admin-1'),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should update user role and log audit', async () => {
-      mockUsersService.findById.mockResolvedValue({ ...testUser, role: UserRole.USER });
-      mockUsersService.adminUpdateUser.mockResolvedValue({ ...testUser, role: UserRole.ADMIN });
+      mockUsersService.findById.mockResolvedValue({
+        ...testUser,
+        role: UserRole.USER,
+      });
+      mockUsersService.adminUpdateUser.mockResolvedValue({
+        ...testUser,
+        role: UserRole.ADMIN,
+      });
 
       await service.updateUser('user-1', { role: UserRole.ADMIN }, 'admin-1');
       expect(mockUsersService.adminUpdateUser).toHaveBeenCalled();
@@ -140,8 +152,14 @@ describe('AdminService', () => {
     });
 
     it('should not log role change if role unchanged', async () => {
-      mockUsersService.findById.mockResolvedValue({ ...testUser, role: UserRole.USER });
-      mockUsersService.adminUpdateUser.mockResolvedValue({ ...testUser, role: UserRole.USER });
+      mockUsersService.findById.mockResolvedValue({
+        ...testUser,
+        role: UserRole.USER,
+      });
+      mockUsersService.adminUpdateUser.mockResolvedValue({
+        ...testUser,
+        role: UserRole.USER,
+      });
 
       await service.updateUser('user-1', { role: UserRole.USER }, 'admin-1');
       // Should still log admin.user.updated but not admin.user.role-changed
@@ -153,9 +171,9 @@ describe('AdminService', () => {
 
   describe('lockUser', () => {
     it('should throw ForbiddenException when admin locks self', async () => {
-      await expect(service.lockUser('admin-1', { locked: true }, 'admin-1')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.lockUser('admin-1', { locked: true }, 'admin-1'),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should lock user account', async () => {
@@ -175,14 +193,16 @@ describe('AdminService', () => {
 
   describe('deactivateUser', () => {
     it('should throw ForbiddenException when admin deactivates self', async () => {
-      await expect(service.deactivateUser('admin-1', 'admin-1')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.deactivateUser('admin-1', 'admin-1'),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should deactivate user account', async () => {
       mockUsersService.findById.mockResolvedValue(testUser);
-      mockUsersService.deactivateUser.mockResolvedValue({ message: 'User deactivated' });
+      mockUsersService.deactivateUser.mockResolvedValue({
+        message: 'User deactivated',
+      });
       const result = await service.deactivateUser('user-1', 'admin-1');
       expect(mockUsersService.deactivateUser).toHaveBeenCalledWith('user-1');
       expect(result.message).toContain('deactivated');
@@ -236,9 +256,9 @@ describe('AdminService', () => {
         groupBy: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          { date: '2024-01-01', count: 5 },
-        ]),
+        getRawMany: jest
+          .fn()
+          .mockResolvedValue([{ date: '2024-01-01', count: 5 }]),
       };
       mockAuditLogRepo.createQueryBuilder.mockReturnValue(qb);
 

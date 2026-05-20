@@ -57,7 +57,13 @@ describe('WebhookController', () => {
     });
 
     it('should pass search and event filters', async () => {
-      mockWebhookService.listWebhooks.mockResolvedValue({ webhooks: [], total: 0, page: 1, limit: 20, totalPages: 0 });
+      mockWebhookService.listWebhooks.mockResolvedValue({
+        webhooks: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0,
+      });
       await controller.listWebhooks({ search: 'test', event: 'user.login' });
       expect(mockWebhookService.listWebhooks).toHaveBeenCalledWith(
         expect.objectContaining({ search: 'test', event: 'user.login' }),
@@ -98,7 +104,9 @@ describe('WebhookController', () => {
 
     it('should throw NotFoundException for nonexistent webhook', async () => {
       mockWebhookService.findById.mockResolvedValue(null);
-      await expect(controller.getWebhook('nonexistent')).rejects.toThrow('Webhook not found');
+      await expect(controller.getWebhook('nonexistent')).rejects.toThrow(
+        'Webhook not found',
+      );
     });
   });
 
@@ -116,8 +124,13 @@ describe('WebhookController', () => {
 
   describe('updateWebhook', () => {
     it('should update a webhook', async () => {
-      mockWebhookService.update.mockResolvedValue({ ...testWebhook, name: 'Updated' });
-      const result = await controller.updateWebhook('wh-1', { name: 'Updated' });
+      mockWebhookService.update.mockResolvedValue({
+        ...testWebhook,
+        name: 'Updated',
+      });
+      const result = await controller.updateWebhook('wh-1', {
+        name: 'Updated',
+      });
       expect(result.name).toBe('Updated');
     });
   });
@@ -145,9 +158,19 @@ describe('WebhookController', () => {
     });
 
     it('should pass status and event filters', async () => {
-      mockWebhookService.listDeliveries.mockResolvedValue({ deliveries: [], total: 0, page: 1, limit: 20, totalPages: 0 });
-      await controller.listDeliveries('wh-1', { status: DeliveryStatus.FAILED, event: 'user.login' });
-      expect(mockWebhookService.listDeliveries).toHaveBeenCalledWith('wh-1',
+      mockWebhookService.listDeliveries.mockResolvedValue({
+        deliveries: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0,
+      });
+      await controller.listDeliveries('wh-1', {
+        status: DeliveryStatus.FAILED,
+        event: 'user.login',
+      });
+      expect(mockWebhookService.listDeliveries).toHaveBeenCalledWith(
+        'wh-1',
         expect.objectContaining({ status: 'failed', event: 'user.login' }),
       );
     });

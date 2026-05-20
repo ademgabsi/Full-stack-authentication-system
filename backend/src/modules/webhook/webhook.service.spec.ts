@@ -2,11 +2,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { WebhookService } from './webhook.service';
 import { Webhook, WebhookEvent } from '../../entities/webhook.entity';
-import { WebhookDelivery, DeliveryStatus } from '../../entities/webhook-delivery.entity';
+import { WebhookDelivery } from '../../entities/webhook-delivery.entity';
 
 const mockWebhookRepo = {
   create: jest.fn((dto) => ({ id: 'wh-1', ...dto })),
-  save: jest.fn((entity) => Promise.resolve({ id: 'wh-1', ...entity, createdAt: new Date(), updatedAt: new Date() })),
+  save: jest.fn((entity) =>
+    Promise.resolve({
+      id: 'wh-1',
+      ...entity,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+  ),
   findOne: jest.fn(),
   find: jest.fn(),
   remove: jest.fn(() => Promise.resolve()),
@@ -24,8 +31,6 @@ const mockDeliveryRepo = {
 
 describe('WebhookService', () => {
   let service: WebhookService;
-  let webhookRepo: typeof mockWebhookRepo;
-  let deliveryRepo: typeof mockDeliveryRepo;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -34,13 +39,14 @@ describe('WebhookService', () => {
       providers: [
         WebhookService,
         { provide: getRepositoryToken(Webhook), useValue: mockWebhookRepo },
-        { provide: getRepositoryToken(WebhookDelivery), useValue: mockDeliveryRepo },
+        {
+          provide: getRepositoryToken(WebhookDelivery),
+          useValue: mockDeliveryRepo,
+        },
       ],
     }).compile();
 
     service = module.get<WebhookService>(WebhookService);
-    webhookRepo = module.get(getRepositoryToken(Webhook));
-    deliveryRepo = module.get(getRepositoryToken(WebhookDelivery));
   });
 
   describe('create', () => {
@@ -134,7 +140,9 @@ describe('WebhookService', () => {
 
     it('should throw NotFoundException for nonexistent webhook', async () => {
       mockWebhookRepo.findOne.mockResolvedValue(null);
-      await expect(service.update('nonexistent', { name: 'Test' })).rejects.toThrow('Webhook not found');
+      await expect(
+        service.update('nonexistent', { name: 'Test' }),
+      ).rejects.toThrow('Webhook not found');
     });
   });
 
@@ -147,13 +155,22 @@ describe('WebhookService', () => {
 
     it('should throw NotFoundException for nonexistent webhook', async () => {
       mockWebhookRepo.findOne.mockResolvedValue(null);
-      await expect(service.delete('nonexistent')).rejects.toThrow('Webhook not found');
+      await expect(service.delete('nonexistent')).rejects.toThrow(
+        'Webhook not found',
+      );
     });
   });
 
   describe('findById', () => {
     it('should return webhook by id', async () => {
-      const webhook = { id: 'wh-1', name: 'Test', url: 'https://example.com', secret: 's', events: [], isActive: true };
+      const webhook = {
+        id: 'wh-1',
+        name: 'Test',
+        url: 'https://example.com',
+        secret: 's',
+        events: [],
+        isActive: true,
+      };
       mockWebhookRepo.findOne.mockResolvedValue(webhook);
       const result = await service.findById('wh-1');
       expect(result).toBe(webhook);
@@ -227,7 +244,9 @@ describe('WebhookService', () => {
 
     it('should throw when webhook not found', async () => {
       mockWebhookRepo.findOne.mockResolvedValue(null);
-      await expect(service.listDeliveries('nonexistent', {})).rejects.toThrow('Webhook not found');
+      await expect(service.listDeliveries('nonexistent', {})).rejects.toThrow(
+        'Webhook not found',
+      );
     });
   });
 
@@ -250,10 +269,26 @@ describe('WebhookService', () => {
   describe('dispatchEvent', () => {
     it('should dispatch event to matching active webhooks', async () => {
       const webhooks = [
-        { id: 'wh-1', url: 'https://example.com/hook', name: 'Hook1', secret: 's1',
-          events: [WebhookEvent.USER_REGISTERED, WebhookEvent.USER_LOGIN], isActive: true, createdAt: new Date(), updatedAt: new Date() },
-        { id: 'wh-2', url: 'https://example.com/hook2', name: 'Hook2', secret: 's2',
-          events: [WebhookEvent.USER_LOGIN], isActive: true, createdAt: new Date(), updatedAt: new Date() },
+        {
+          id: 'wh-1',
+          url: 'https://example.com/hook',
+          name: 'Hook1',
+          secret: 's1',
+          events: [WebhookEvent.USER_REGISTERED, WebhookEvent.USER_LOGIN],
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'wh-2',
+          url: 'https://example.com/hook2',
+          name: 'Hook2',
+          secret: 's2',
+          events: [WebhookEvent.USER_LOGIN],
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       ];
       mockWebhookRepo.find.mockResolvedValue(webhooks);
 
@@ -263,9 +298,13 @@ describe('WebhookService', () => {
         Promise.resolve(new Response('OK', { status: 200 })),
       ) as jest.Mock;
 
-      await service.dispatchEvent(WebhookEvent.USER_REGISTERED, { userId: 'user-1' });
+      await service.dispatchEvent(WebhookEvent.USER_REGISTERED, {
+        userId: 'user-1',
+      });
 
-      expect(mockWebhookRepo.find).toHaveBeenCalledWith({ where: { isActive: true } });
+      expect(mockWebhookRepo.find).toHaveBeenCalledWith({
+        where: { isActive: true },
+      });
 
       global.fetch = originalFetch;
     });

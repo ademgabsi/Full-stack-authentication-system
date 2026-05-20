@@ -1,11 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNotEmpty,
-  Length,
-  Matches,
-  IsUUID,
-} from 'class-validator';
+import { IsString, IsNotEmpty, Length, Matches, IsUUID } from 'class-validator';
 
 export class MfaVerifyDto {
   @ApiProperty({

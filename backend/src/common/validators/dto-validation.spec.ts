@@ -7,7 +7,10 @@ import { MfaVerifyDto } from '../../modules/auth/dto/mfa-verify.dto';
 import { MfaEnableDto } from '../../modules/auth/dto/mfa-enable.dto';
 import { MfaDisableDto } from '../../modules/auth/dto/mfa-disable.dto';
 import { MfaBackupCodeVerifyDto } from '../../modules/auth/dto/mfa-backup-code-verify.dto';
-import { ForgotPasswordDto, ResetPasswordDto } from '../../modules/auth/dto/forgot-password.dto';
+import {
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from '../../modules/auth/dto/forgot-password.dto';
 import { ResendVerificationDto } from '../../modules/auth/dto/resend-verification.dto';
 import { UpdateProfileDto } from '../../modules/users/dto/update-profile.dto';
 import { ChangePasswordDto } from '../../modules/users/dto/change-password.dto';
@@ -264,7 +267,9 @@ describe('DTO Validation', () => {
 
   describe('ForgotPasswordDto', () => {
     it('should pass with valid email', async () => {
-      const dto = plainToInstance(ForgotPasswordDto, { email: 'test@example.com' });
+      const dto = plainToInstance(ForgotPasswordDto, {
+        email: 'test@example.com',
+      });
       const errors = await getErrors(dto);
       expect(errors).toHaveLength(0);
     });
@@ -294,7 +299,9 @@ describe('DTO Validation', () => {
 
   describe('ResendVerificationDto', () => {
     it('should pass with valid email', async () => {
-      const dto = plainToInstance(ResendVerificationDto, { email: 'test@example.com' });
+      const dto = plainToInstance(ResendVerificationDto, {
+        email: 'test@example.com',
+      });
       const errors = await getErrors(dto);
       expect(errors).toHaveLength(0);
     });
@@ -308,7 +315,9 @@ describe('DTO Validation', () => {
     });
 
     it('should fail when email is changed without currentPassword', async () => {
-      const dto = plainToInstance(UpdateProfileDto, { email: 'new@example.com' });
+      const dto = plainToInstance(UpdateProfileDto, {
+        email: 'new@example.com',
+      });
       const errors = await getErrors(dto);
       expect(errors.length).toBeGreaterThan(0);
       expect(errors.some((e) => e.property === 'currentPassword')).toBe(true);

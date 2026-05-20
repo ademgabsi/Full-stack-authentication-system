@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { User, UserRole } from '../../entities/user.entity';
@@ -46,7 +46,9 @@ function createMockRepo() {
     findOne: jest.fn(),
     find: jest.fn(),
     create: jest.fn((dto: any) => dto),
-    save: jest.fn((entity: any) => Promise.resolve({ id: 'entity-1', ...entity })),
+    save: jest.fn((entity: any) =>
+      Promise.resolve({ id: 'entity-1', ...entity }),
+    ),
     update: jest.fn(() => Promise.resolve()),
     delete: jest.fn(() => Promise.resolve()),
     createQueryBuilder: jest.fn(),
@@ -67,7 +69,9 @@ const mockDataSource = {
 };
 
 const mockCloudinary = {
-  uploadImage: jest.fn(() => Promise.resolve('https://cloud.example.com/img.jpg')),
+  uploadImage: jest.fn(() =>
+    Promise.resolve('https://cloud.example.com/img.jpg'),
+  ),
   deleteImage: jest.fn(() => Promise.resolve()),
   getPublicIdFromUrl: jest.fn(() => 'profiles/abc123'),
 };
@@ -90,7 +94,6 @@ const mockEmail = {
 
 describe('UsersService', () => {
   let service: UsersService;
-  let userRepo: ReturnType<typeof createMockRepo>;
   let emailVerificationRepo: ReturnType<typeof createMockRepo>;
 
   beforeEach(async () => {
@@ -102,12 +105,24 @@ describe('UsersService', () => {
       providers: [
         UsersService,
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
-        { provide: getRepositoryToken(EmailVerificationToken), useValue: mockEmailVerifRepo },
-        { provide: getRepositoryToken(RefreshToken), useValue: mockRefreshTokenRepo2 },
-        { provide: getRepositoryToken(DeviceFingerprint), useValue: mockDfRepo2 },
+        {
+          provide: getRepositoryToken(EmailVerificationToken),
+          useValue: mockEmailVerifRepo,
+        },
+        {
+          provide: getRepositoryToken(RefreshToken),
+          useValue: mockRefreshTokenRepo2,
+        },
+        {
+          provide: getRepositoryToken(DeviceFingerprint),
+          useValue: mockDfRepo2,
+        },
         { provide: getRepositoryToken(AnomalyLog), useValue: mockAlRepo2 },
         { provide: getRepositoryToken(StepUpChallenge), useValue: mockScRepo2 },
-        { provide: getRepositoryToken(WebAuthnCredential), useValue: mockWaRepo2 },
+        {
+          provide: getRepositoryToken(WebAuthnCredential),
+          useValue: mockWaRepo2,
+        },
         { provide: getRepositoryToken(PasswordReset), useValue: mockPrRepo2 },
         { provide: DataSource, useValue: mockDataSource },
         { provide: CloudinaryService, useValue: mockCloudinary },
@@ -119,7 +134,6 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    userRepo = module.get(getRepositoryToken(User));
     emailVerificationRepo = module.get(getRepositoryToken(EmailVerificationToken));
   });
 
@@ -132,7 +146,9 @@ describe('UsersService', () => {
 
     it('should throw NotFoundException for nonexistent user', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
-      await expect(service.findById('nonexistent')).rejects.toThrow('User not found');
+      await expect(service.findById('nonexistent')).rejects.toThrow(
+        'User not found',
+      );
     });
   });
 
@@ -156,9 +172,16 @@ describe('UsersService', () => {
   describe('updateProfile', () => {
     it('should update fullName', async () => {
       mockUserRepo.findOne.mockResolvedValueOnce(testUser);
-      mockUserRepo.findOne.mockResolvedValueOnce({ ...testUser, fullName: 'Updated Name' });
-      const result = await service.updateProfile('user-1', { fullName: 'Updated Name' });
-      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1', { fullName: 'Updated Name' });
+      mockUserRepo.findOne.mockResolvedValueOnce({
+        ...testUser,
+        fullName: 'Updated Name',
+      });
+      const result = await service.updateProfile('user-1', {
+        fullName: 'Updated Name',
+      });
+      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1', {
+        fullName: 'Updated Name',
+      });
       expect((result as any).fullName).toBe('Updated Name');
     });
 
@@ -167,7 +190,10 @@ describe('UsersService', () => {
         .mockResolvedValueOnce(testUser) // findById
         .mockResolvedValueOnce({ id: 'user-2', email: 'existing@example.com' }); // findByEmail
       await expect(
-        service.updateProfile('user-1', { email: 'existing@example.com', currentPassword: 'StrongPass1!' }),
+        service.updateProfile('user-1', {
+          email: 'existing@example.com',
+          currentPassword: 'StrongPass1!',
+        }),
       ).rejects.toThrow('Email already in use');
     });
 
@@ -175,19 +201,26 @@ describe('UsersService', () => {
       mockUserRepo.findOne
         .mockResolvedValueOnce(testUser) // findById
         .mockResolvedValueOnce(null); // findByEmail returns null (no conflict)
-      await expect(service.updateProfile('user-1', { email: 'new@example.com' })).rejects.toThrow(
-        'Current password is required to change email',
-      );
+      await expect(
+        service.updateProfile('user-1', { email: 'new@example.com' }),
+      ).rejects.toThrow('Current password is required to change email');
     });
 
     it('should throw for OAuth accounts when changing email', async () => {
-      const oauthUser = { ...testUser, provider: 'google', passwordHash: null! };
+      const oauthUser = {
+        ...testUser,
+        provider: 'google',
+        passwordHash: null!,
+      };
       mockUserRepo.findOne
         .mockResolvedValueOnce(oauthUser) // findById
         .mockResolvedValueOnce(null) // findByEmail (no conflict)
         .mockResolvedValueOnce(oauthUser); // userRepository.findOne with select passwordHash
       await expect(
-        service.updateProfile('user-1', { email: 'new@example.com', currentPassword: 'Pass1!' }),
+        service.updateProfile('user-1', {
+          email: 'new@example.com',
+          currentPassword: 'Pass1!',
+        }),
       ).rejects.toThrow('Cannot change email for OAuth accounts');
     });
   });
@@ -195,7 +228,10 @@ describe('UsersService', () => {
   describe('changePassword', () => {
     it('should change password successfully', async () => {
       const pwHash = await bcrypt.hash('OldPass1!', 10);
-      mockUserRepo.findOne.mockResolvedValue({ id: 'user-1', passwordHash: pwHash });
+      mockUserRepo.findOne.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: pwHash,
+      });
       const result = await service.changePassword('user-1', {
         currentPassword: 'OldPass1!',
         newPassword: 'NewStrong1!',
@@ -206,24 +242,39 @@ describe('UsersService', () => {
 
     it('should throw when current password is wrong', async () => {
       const pwHash = await bcrypt.hash('OldPass1!', 10);
-      mockUserRepo.findOne.mockResolvedValue({ id: 'user-1', passwordHash: pwHash });
+      mockUserRepo.findOne.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: pwHash,
+      });
       await expect(
-        service.changePassword('user-1', { currentPassword: 'WrongPass1!', newPassword: 'NewStrong1!' }),
+        service.changePassword('user-1', {
+          currentPassword: 'WrongPass1!',
+          newPassword: 'NewStrong1!',
+        }),
       ).rejects.toThrow('Current password is incorrect');
     });
 
     it('should throw when new password is breached', async () => {
       const pwHash = await bcrypt.hash('OldPass1!', 10);
-      mockUserRepo.findOne.mockResolvedValue({ id: 'user-1', passwordHash: pwHash });
+      mockUserRepo.findOne.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: pwHash,
+      });
       mockBreach.isBreached.mockResolvedValue(50);
       await expect(
-        service.changePassword('user-1', { currentPassword: 'OldPass1!', newPassword: 'Leaked1!' }),
+        service.changePassword('user-1', {
+          currentPassword: 'OldPass1!',
+          newPassword: 'Leaked1!',
+        }),
       ).rejects.toThrow('data breaches');
     });
 
     it('should allow breached password with ignoreBreachWarning', async () => {
       const pwHash = await bcrypt.hash('OldPass1!', 10);
-      mockUserRepo.findOne.mockResolvedValue({ id: 'user-1', passwordHash: pwHash });
+      mockUserRepo.findOne.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: pwHash,
+      });
       mockBreach.isBreached.mockResolvedValue(50);
       const result = await service.changePassword('user-1', {
         currentPassword: 'OldPass1!',
@@ -246,11 +297,18 @@ describe('UsersService', () => {
     it('should confirm deletion and schedule for 14 days', async () => {
       mockUserRepo.findOne.mockResolvedValue(testUser); // findById
       emailVerificationRepo.findOne.mockResolvedValue({
-        id: 'ev-1', userId: 'user-1', code: 'hashed-code', expiresAt: new Date(Date.now() + 100000),
+        id: 'ev-1',
+        userId: 'user-1',
+        code: 'hashed-code',
+        expiresAt: new Date(Date.now() + 100000),
       });
       const result = await service.confirmDeletion('user-1', '123456');
-      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1',
-        expect.objectContaining({ isActive: false, scheduledDeletionAt: expect.any(Date) }),
+      expect(mockUserRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          isActive: false,
+          scheduledDeletionAt: expect.any(Date),
+        }),
       );
       expect(result.message).toContain('scheduled for deletion');
     });
@@ -258,25 +316,39 @@ describe('UsersService', () => {
     it('should throw with invalid confirmation code', async () => {
       mockUserRepo.findOne.mockResolvedValue(testUser); // findById returns user
       emailVerificationRepo.findOne.mockResolvedValue(null);
-      await expect(service.confirmDeletion('user-1', 'wrong')).rejects.toThrow('Invalid confirmation code');
+      await expect(service.confirmDeletion('user-1', 'wrong')).rejects.toThrow(
+        'Invalid confirmation code',
+      );
     });
 
     it('should throw with expired confirmation code', async () => {
       mockUserRepo.findOne.mockResolvedValue(testUser); // findById returns user
       emailVerificationRepo.findOne.mockResolvedValue({
-        id: 'ev-1', userId: 'user-1', code: 'hashed-code', expiresAt: new Date(Date.now() - 100000),
+        id: 'ev-1',
+        userId: 'user-1',
+        code: 'hashed-code',
+        expiresAt: new Date(Date.now() - 100000),
       });
-      await expect(service.confirmDeletion('user-1', '123456')).rejects.toThrow('Confirmation code has expired');
+      await expect(service.confirmDeletion('user-1', '123456')).rejects.toThrow(
+        'Confirmation code has expired',
+      );
     });
 
     it('should cancel deletion', async () => {
-      const deletionUser = { ...testUser, scheduledDeletionAt: new Date(Date.now() + 100000) };
+      const deletionUser = {
+        ...testUser,
+        scheduledDeletionAt: new Date(Date.now() + 100000),
+      };
       mockUserRepo.findOne.mockResolvedValue(deletionUser); // findById
       emailVerificationRepo.findOne.mockResolvedValue({
-        id: 'ev-1', userId: 'user-1', code: 'hashed-code', expiresAt: new Date(Date.now() + 100000),
+        id: 'ev-1',
+        userId: 'user-1',
+        code: 'hashed-code',
+        expiresAt: new Date(Date.now() + 100000),
       });
       const result = await service.cancelDeletion('user-1', '123456');
-      expect(mockUserRepo.update).toHaveBeenCalledWith('user-1',
+      expect(mockUserRepo.update).toHaveBeenCalledWith(
+        'user-1',
         expect.objectContaining({ isActive: true }),
       );
       expect(result.message).toContain('cancelled');
@@ -284,7 +356,9 @@ describe('UsersService', () => {
 
     it('should throw canceling when no deletion request exists', async () => {
       mockUserRepo.findOne.mockResolvedValue(testUser);
-      await expect(service.cancelDeletion('user-1', '123456')).rejects.toThrow('No deletion request found');
+      await expect(service.cancelDeletion('user-1', '123456')).rejects.toThrow(
+        'No deletion request found',
+      );
     });
   });
 });

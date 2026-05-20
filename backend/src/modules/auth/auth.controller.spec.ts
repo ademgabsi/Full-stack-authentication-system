@@ -73,7 +73,11 @@ describe('AuthController', () => {
     it('should call authService.register', async () => {
       mockAuthService.register.mockResolvedValue({ message: 'Registered' });
       const result = await controller.register(
-        { email: 'test@example.com', password: 'StrongPass1!', fullName: 'Test' },
+        {
+          email: 'test@example.com',
+          password: 'StrongPass1!',
+          fullName: 'Test',
+        },
         mockReq,
       );
       expect(authService.register).toHaveBeenCalled();
@@ -131,7 +135,9 @@ describe('AuthController', () => {
   describe('resendVerification', () => {
     it('should call authService.resendVerification', async () => {
       mockAuthService.resendVerification.mockResolvedValue({ message: 'Sent' });
-      const result = await controller.resendVerification({ email: 'test@example.com' });
+      const result = await controller.resendVerification({
+        email: 'test@example.com',
+      });
       expect(result.message).toBe('Sent');
     });
   });
@@ -159,7 +165,9 @@ describe('AuthController', () => {
         mockRes,
       );
       expect(mockRes.cookie).toHaveBeenCalled();
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('mfa_temp_token', { path: '/api/auth' });
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('mfa_temp_token', {
+        path: '/api/auth',
+      });
     });
   });
 
@@ -185,8 +193,15 @@ describe('AuthController', () => {
 
   describe('enableMfa', () => {
     it('should call authService.enableMfa', async () => {
-      mockAuthService.enableMfa.mockResolvedValue({ message: 'MFA enabled', backupCodes: [] });
-      const result = await controller.enableMfa('user-1', { totpCode: '123456' }, mockReq);
+      mockAuthService.enableMfa.mockResolvedValue({
+        message: 'MFA enabled',
+        backupCodes: [],
+      });
+      const result = await controller.enableMfa(
+        'user-1',
+        { totpCode: '123456' },
+        mockReq,
+      );
       expect(result.message).toContain('enabled');
     });
   });
@@ -194,7 +209,11 @@ describe('AuthController', () => {
   describe('disableMfa', () => {
     it('should call authService.disableMfa', async () => {
       mockAuthService.disableMfa.mockResolvedValue({ message: 'MFA disabled' });
-      const result = await controller.disableMfa('user-1', { password: 'Pass1!' }, mockReq);
+      const result = await controller.disableMfa(
+        'user-1',
+        { password: 'Pass1!' },
+        mockReq,
+      );
       expect(result.message).toContain('disabled');
     });
   });
@@ -202,10 +221,7 @@ describe('AuthController', () => {
   describe('refreshTokens', () => {
     it('should throw when refresh_token cookie is missing', async () => {
       await expect(
-        controller.refreshTokens(
-          { cookies: {} } as any,
-          mockRes,
-        ),
+        controller.refreshTokens({ cookies: {} } as any, mockRes),
       ).rejects.toThrow('Missing refresh token');
     });
 
@@ -236,24 +252,26 @@ describe('AuthController', () => {
         'user-1',
         mockRes,
       );
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('refresh_token', { path: '/' });
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('refresh_token', {
+        path: '/',
+      });
       expect(result.message).toContain('Logged out');
     });
 
     it('should not throw when no refresh token cookie', async () => {
       mockAuthService.logout.mockResolvedValue({ message: 'Logged out' });
-      await controller.logout(
-        { cookies: {} } as any,
-        'user-1',
-        mockRes,
-      );
-      expect(mockRes.clearCookie).toHaveBeenCalledWith('refresh_token', { path: '/' });
+      await controller.logout({ cookies: {} } as any, 'user-1', mockRes);
+      expect(mockRes.clearCookie).toHaveBeenCalledWith('refresh_token', {
+        path: '/',
+      });
     });
   });
 
   describe('listSessions', () => {
     it('should call authService.listSessions', async () => {
-      mockAuthService.listSessions.mockResolvedValue([{ id: 's1', deviceInfo: 'Chrome' }]);
+      mockAuthService.listSessions.mockResolvedValue([
+        { id: 's1', deviceInfo: 'Chrome' },
+      ]);
       const result = await controller.listSessions('user-1', mockReq);
       expect(result).toHaveLength(1);
     });
@@ -261,8 +279,14 @@ describe('AuthController', () => {
 
   describe('revokeSession', () => {
     it('should call authService.revokeSession', async () => {
-      mockAuthService.revokeSession.mockResolvedValue({ message: 'Session revoked' });
-      const result = await controller.revokeSession('session-1', 'user-1', mockReq);
+      mockAuthService.revokeSession.mockResolvedValue({
+        message: 'Session revoked',
+      });
+      const result = await controller.revokeSession(
+        'session-1',
+        'user-1',
+        mockReq,
+      );
       expect(result.message).toContain('revoked');
     });
   });
@@ -270,19 +294,27 @@ describe('AuthController', () => {
   describe('forgotPassword', () => {
     it('should call authService.forgotPassword', async () => {
       mockAuthService.forgotPassword.mockResolvedValue({ message: 'Sent' });
-      const result = await controller.forgotPassword({ email: 'test@example.com' }, mockReq);
+      const result = await controller.forgotPassword(
+        { email: 'test@example.com' },
+        mockReq,
+      );
       expect(result.message).toBe('Sent');
     });
   });
 
   describe('resetPassword', () => {
     it('should call authService.resetPassword', async () => {
-      mockAuthService.resetPassword.mockResolvedValue({ message: 'Password reset' });
-      const result = await controller.resetPassword({
-        email: 'test@example.com',
-        code: '123456',
-        password: 'NewPass1!',
-      }, mockReq);
+      mockAuthService.resetPassword.mockResolvedValue({
+        message: 'Password reset',
+      });
+      const result = await controller.resetPassword(
+        {
+          email: 'test@example.com',
+          code: '123456',
+          password: 'NewPass1!',
+        },
+        mockReq,
+      );
       expect(result.message).toBe('Password reset');
     });
   });

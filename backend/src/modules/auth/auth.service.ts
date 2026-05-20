@@ -49,7 +49,10 @@ import {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly oauthStateStore = new Map<string, { data: any; expiresAt: number }>();
+  private readonly oauthStateStore = new Map<
+    string,
+    { data: any; expiresAt: number }
+  >();
 
   constructor(
     @InjectRepository(User)
@@ -78,8 +81,6 @@ export class AuthService {
     return String(randomInt(100000, 1000000));
   }
 
-  
-
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
@@ -104,7 +105,10 @@ export class AuthService {
       .digest('hex');
   }
 
-  async storeOAuthState(code: string, data: { accessToken: string; refreshToken: string; user: any }): Promise<void> {
+  async storeOAuthState(
+    code: string,
+    data: { accessToken: string; refreshToken: string; user: any },
+  ): Promise<void> {
     this.oauthStateStore.set(code, {
       data,
       expiresAt: Date.now() + 5 * 60 * 1000,
@@ -112,7 +116,9 @@ export class AuthService {
     setTimeout(() => this.oauthStateStore.delete(code), 5 * 60 * 1000);
   }
 
-  async exchangeOAuthState(code: string): Promise<{ accessToken: string; refreshToken: string; user: any } | null> {
+  async exchangeOAuthState(
+    code: string,
+  ): Promise<{ accessToken: string; refreshToken: string; user: any } | null> {
     const entry = this.oauthStateStore.get(code);
     if (!entry) return null;
     if (entry.expiresAt < Date.now()) {
@@ -955,7 +961,10 @@ export class AuthService {
       if (refreshTokenEntity.expiresAt < new Date()) {
         throw new UnauthorizedException('Refresh token has expired');
       }
-      if (!refreshTokenEntity.user.isActive && !refreshTokenEntity.user.scheduledDeletionAt) {
+      if (
+        !refreshTokenEntity.user.isActive &&
+        !refreshTokenEntity.user.scheduledDeletionAt
+      ) {
         throw new ForbiddenException('Account deactivated');
       }
 
