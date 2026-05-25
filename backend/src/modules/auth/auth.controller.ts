@@ -214,6 +214,26 @@ export class AuthController {
       const { refreshToken: _, ...body } = result;
       return body;
     }
+    if ('mfaRequired' in result && result.mfaRequired) {
+      res.cookie('mfa_temp_token', result.tempToken!, {
+        httpOnly: true,
+        sameSite: 'strict',
+        path: '/api/auth',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 5 * 60 * 1000,
+      });
+      return result;
+    }
+    if ('stepUpRequired' in result && result.stepUpRequired) {
+      res.cookie('step_up_token', result.stepUpToken!, {
+        httpOnly: true,
+        sameSite: 'strict',
+        path: '/api/auth',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 10 * 60 * 1000,
+      });
+      return result;
+    }
     return result;
   }
 
@@ -239,7 +259,10 @@ export class AuthController {
         HttpStatus.UNAUTHORIZED,
       );
     }
-    const result = await this.authService.verifyMfa({ ...dto, tempToken }, req);
+    const result = await this.authService.verifyMfa(
+      { ...dto, tempToken },
+      req,
+    );
     res.cookie(
       'refresh_token',
       result.refreshToken,

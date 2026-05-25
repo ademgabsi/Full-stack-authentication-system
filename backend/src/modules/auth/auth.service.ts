@@ -494,6 +494,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.passwordHash) {
+      await this.logAudit({
+        userId: user.id,
+        action: 'auth.login.failed',
+        resource: `user:${user.id}`,
+        metadata: { reason: 'no_password_set' },
+        req,
+      });
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
     const isPasswordValid = await bcrypt.compare(
       dto.password,
       user.passwordHash,
@@ -784,6 +795,10 @@ export class AuthService {
     }
     if (!user.mfaEnabled) {
       throw new BadRequestException('MFA is not enabled');
+    }
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Invalid password');
     }
 
     const isPasswordValid = await bcrypt.compare(

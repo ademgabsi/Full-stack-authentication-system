@@ -9,12 +9,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKeyProvider: ({ header }) => {
-        if (header?.kid) {
-          return configService.jwtSecret;
-        }
-        return configService.jwtSecret;
-      },
+      secretOrKey: configService.jwtSecret,
       issuer: 'authsystem-api',
       audience: 'authsystem-app',
     });
