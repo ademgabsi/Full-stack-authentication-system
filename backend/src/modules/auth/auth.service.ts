@@ -75,7 +75,27 @@ export class AuthService {
     private deviceFingerprintService: DeviceFingerprintService,
     private anomalyDetectionService: AnomalyDetectionService,
     private stepUpChallengeService: StepUpChallengeService,
-  ) {}
+  ) {
+    this.isAuditDisabled = configService.disableAuditLogs;
+    this.isWebhooksDisabled = configService.disableWebhooks;
+    this.isFingerprintingDisabled = configService.disableFingerprinting;
+  }
+
+  private isAuditDisabled = false;
+  private isWebhooksDisabled = false;
+  private isFingerprintingDisabled = false;
+
+  private async logAudit(params: Parameters<AuditLogService['log']>[0]): Promise<void> {
+    if (!this.isAuditDisabled) {
+      await this.auditLogService.log(params);
+    }
+  }
+
+  private async dispatchWebhook(event: WebhookEvent, data: any): Promise<void> {
+    if (!this.isWebhooksDisabled) {
+      this.webhookService.dispatchEvent(event, data).catch(() => {});
+    }
+  }
 
   private generateCode(): string {
     return String(randomInt(100000, 1000000));
@@ -422,7 +442,7 @@ export class AuthService {
 
     if (!user) {
       await bcrypt.hash(dto.password, 10);
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: null,
         action: 'auth.login.failed',
         metadata: { email: normalizedEmail, reason: 'user_not_found' },
@@ -448,7 +468,7 @@ export class AuthService {
           )?.code ?? '',
         )
         .catch(() => {});
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
@@ -459,7 +479,7 @@ export class AuthService {
     }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
@@ -470,7 +490,7 @@ export class AuthService {
     }
 
     if (!user.isActive && !user.scheduledDeletionAt) {
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
@@ -503,7 +523,7 @@ export class AuthService {
         this.emailService
           .sendAccountLockedEmail(user.email, user.fullName)
           .catch(() => {});
-        await this.auditLogService.log({
+        await this.logAudit({
           userId: user.id,
           action: 'auth.login.failed',
           resource: `user:${user.id}`,
@@ -519,7 +539,7 @@ export class AuthService {
           .catch(() => {});
         throw new UnauthorizedException('Invalid credentials');
       }
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
@@ -535,13 +555,15 @@ export class AuthService {
       lastLogin: new Date(),
     });
 
-    const stepUpResult = await this.checkAnomaliesAndStepUp(
-      user,
-      req,
-      dto.fingerprint,
-    );
-    if (stepUpResult) {
-      return stepUpResult;
+    if (!this.isFingerprintingDisabled) {
+      const stepUpResult = await this.checkAnomaliesAndStepUp(
+        user,
+        req,
+        dto.fingerprint,
+      );
+      if (stepUpResult) {
+        return stepUpResult;
+      }
     }
 
     if (user.mfaEnabled) {
@@ -900,9 +922,11 @@ export class AuthService {
         .catch(() => {});
     }
 
-    const stepUpResult = await this.checkAnomaliesAndStepUp(user!, req);
-    if (stepUpResult) {
-      return stepUpResult;
+    if (!this.isFingerprintingDisabled) {
+      const stepUpResult = await this.checkAnomaliesAndStepUp(user!, req);
+      if (stepUpResult) {
+        return stepUpResult;
+      }
     }
 
     await this.auditLogService.log({
@@ -934,12 +958,11 @@ export class AuthService {
   async refreshTokens(refreshToken: string, req?: Request) {
     const tokenHash = this.hashToken(refreshToken);
 
-    return this.dataSource.transaction('SERIALIZABLE', async (manager) => {
+    return this.dataSource.transaction('READ COMMITTED', async (manager) => {
       const refreshTokenEntity = await manager
         .createQueryBuilder(RefreshToken, 'rt')
         .innerJoinAndSelect('rt.user', 'user')
         .where('rt.token = :tokenHash', { tokenHash })
-        .setLock('pessimistic_write')
         .getOne();
 
       if (!refreshTokenEntity) {
@@ -972,7 +995,7 @@ export class AuthService {
         isRevoked: true,
       });
 
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: refreshTokenEntity.userId,
         action: 'auth.refresh',
         resource: `user:${refreshTokenEntity.userId}`,

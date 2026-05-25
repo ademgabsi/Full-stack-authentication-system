@@ -101,4 +101,20 @@ export class AppConfigService {
   get redisPassword(): string | undefined {
     return this.configService.get<string>('app.redis.password') || undefined;
   }
+
+  get devMode(): boolean {
+    return this.configService.get<boolean>('app.devMode') ?? false;
+  }
+
+  get disableAuditLogs(): boolean {
+    return this.configService.get<boolean>('app.disableAuditLogs') ?? false;
+  }
+
+  get disableWebhooks(): boolean {
+    return this.configService.get<boolean>('app.disableWebhooks') ?? false;
+  }
+
+  get disableFingerprinting(): boolean {
+    return this.configService.get<boolean>('app.disableFingerprinting') ?? false;
+  }
 }

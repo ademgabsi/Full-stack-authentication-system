@@ -74,4 +74,9 @@ export default registerAs('app', () => ({
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     password: process.env.REDIS_PASSWORD || undefined,
   },
+
+  devMode: process.env.NODE_ENV === 'development',
+  disableAuditLogs: process.env.DISABLE_AUDIT_LOGS === 'true',
+  disableWebhooks: process.env.DISABLE_WEBHOOKS === 'true',
+  disableFingerprinting: process.env.DISABLE_FINGERPRINTING === 'true',
 }));
