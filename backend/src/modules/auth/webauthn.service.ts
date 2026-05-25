@@ -56,7 +56,7 @@ export class WebAuthnService {
       })),
       authenticatorSelection: {
         residentKey: 'preferred',
-        userVerification: 'preferred',
+        userVerification: 'discouraged',
         authenticatorAttachment: 'platform',
       },
     });
