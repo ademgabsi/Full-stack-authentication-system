@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, formatDate, getInitials, getErrorInfo, getErrorMessage, ErrorInfo } from '@/lib/utils';
+import { cn, formatDate, getInitials, getErrorInfo, getErrorMessage } from '@/lib/utils';
 
 describe('cn', () => {
   it('should merge class names', () => {

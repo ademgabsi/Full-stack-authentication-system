@@ -1,11 +1,7 @@
 import {
   JwtAuthGuard,
 } from './jwt-auth.guard';
-import { Reflector } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
-import { AppConfigService } from '../../config/app-config.service';
 import { UnauthorizedException } from '@nestjs/common';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 const mockReflector = {
   getAllAndOverride: jest.fn(),

@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import * as simpleWebAuthn from '@simplewebauthn/server';
 import { WebAuthnService } from './webauthn.service';
 import { WebAuthnCredential } from '../../entities/webauthn-credential.entity';

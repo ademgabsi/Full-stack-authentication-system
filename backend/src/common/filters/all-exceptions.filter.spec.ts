@@ -3,8 +3,6 @@ import {
 } from './all-exceptions.filter';
 import {
   HttpException,
-  HttpStatus,
-  InternalServerErrorException,
   BadRequestException,
 } from '@nestjs/common';
 import { ArgumentsHost } from '@nestjs/common';
