@@ -222,7 +222,8 @@ export class AuthController {
         secure: process.env.NODE_ENV === 'production',
         maxAge: 5 * 60 * 1000,
       });
-      return result;
+      const { tempToken: _, ...body } = result;
+      return body;
     }
     if ('stepUpRequired' in result && result.stepUpRequired) {
       res.cookie('step_up_token', result.stepUpToken!, {
@@ -232,7 +233,8 @@ export class AuthController {
         secure: process.env.NODE_ENV === 'production',
         maxAge: 10 * 60 * 1000,
       });
-      return result;
+      const { stepUpToken: _, ...body } = result;
+      return body;
     }
     return result;
   }

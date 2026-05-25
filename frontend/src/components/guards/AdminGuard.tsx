@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router';
+import axios from 'axios';
 import { useAuthStore } from '@/stores/auth.store';
-import { authApi } from '@/api/auth.api';
 import { Spinner } from '@/components/ui';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export function AdminGuard() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -10,24 +12,25 @@ export function AdminGuard() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const location = useLocation();
 
-  const [refreshing, setRefreshing] = useState(
-    isAuthenticated && !accessToken,
-  );
+  const needsRefresh = isAuthenticated && !accessToken;
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || accessToken) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!needsRefresh) {
       setRefreshing(false);
       return;
     }
 
+    setRefreshing(true);
+
     let cancelled = false;
     const { login, setAccessToken, logout } = useAuthStore.getState();
 
-    authApi
-      .refreshToken()
-      .then((data) => {
+    axios
+      .post(`${API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true })
+      .then((response) => {
         if (cancelled) return;
+        const data = response.data?.data ?? response.data;
         if (data.user) {
           login(data.accessToken, data.user);
         } else {
@@ -44,7 +47,7 @@ export function AdminGuard() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, accessToken]);
+  }, [needsRefresh]);
 
   if (refreshing) {
     return (
