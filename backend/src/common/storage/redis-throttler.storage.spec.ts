@@ -102,7 +102,7 @@ describe('RedisThrottlerStorage', () => {
       expect((await storage.increment('key3', 1000, 10, 0, 'default')).totalHits).toBe(1);
     });
 
-    it('should not block when blockDuration is 0 even if limit exceeded', async () => {
+    it('should mark as blocked when limit is exceeded even if blockDuration is 0', async () => {
       for (let i = 0; i < 10; i++) {
         await storage.increment('key4', 60000, 4, 0, 'default');
       }
