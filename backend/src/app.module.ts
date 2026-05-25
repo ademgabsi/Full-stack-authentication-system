@@ -56,9 +56,15 @@ function getSslConfig(sslEnabled: boolean) {
           max: 10,
           keepAlive: true,
           keepAliveInitialDelayMillis: 10000,
+          family: 4,
         },
+        connectTimeoutMS: 15000,
         poolErrorHandler: (err: Error) => {
           console.error('Database pool error:', err.message);
+        },
+        options: {
+          statement_cache_size: 0,
+          prepare: false,
         },
       }),
     }),
@@ -74,9 +80,15 @@ function getSslConfig(sslEnabled: boolean) {
           enableReadyCheck: true,
           retryStrategy: (times) => Math.min(times * 200, 5000),
           lazyConnect: true,
+          connectTimeout: 3000,
         });
 
-        redis.on('error', () => {});
+        redis.on('error', (err) => {
+          console.error('Redis connection error:', err.message);
+        });
+        redis.on('connect', () => {
+          console.log('Redis connected');
+        });
 
         return {
           throttlers: [

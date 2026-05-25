@@ -75,7 +75,27 @@ export class AuthService {
     private deviceFingerprintService: DeviceFingerprintService,
     private anomalyDetectionService: AnomalyDetectionService,
     private stepUpChallengeService: StepUpChallengeService,
-  ) {}
+  ) {
+    this.isAuditDisabled = configService.disableAuditLogs;
+    this.isWebhooksDisabled = configService.disableWebhooks;
+    this.isFingerprintingDisabled = configService.disableFingerprinting;
+  }
+
+  private isAuditDisabled = false;
+  private isWebhooksDisabled = false;
+  private isFingerprintingDisabled = false;
+
+  private async logAudit(params: Parameters<AuditLogService['log']>[0]): Promise<void> {
+    if (!this.isAuditDisabled) {
+      await this.auditLogService.log(params);
+    }
+  }
+
+  private async dispatchWebhook(event: WebhookEvent, data: any): Promise<void> {
+    if (!this.isWebhooksDisabled) {
+      this.webhookService.dispatchEvent(event, data).catch(() => {});
+    }
+  }
 
   private generateCode(): string {
     return String(randomInt(100000, 1000000));
@@ -299,7 +319,7 @@ export class AuthService {
 
     this.emailService.sendVerificationEmail(user.email, code).catch(() => {});
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId: user.id,
       action: 'auth.register',
       resource: `user:${user.id}`,
@@ -307,13 +327,11 @@ export class AuthService {
       req,
     });
 
-    this.webhookService
-      .dispatchEvent(WebhookEvent.USER_REGISTERED, {
-        userId: user.id,
-        email: normalizedEmail,
-        fullName: user.fullName,
-      })
-      .catch(() => {});
+    this.dispatchWebhook(WebhookEvent.USER_REGISTERED, {
+      userId: user.id,
+      email: normalizedEmail,
+      fullName: user.fullName,
+    });
 
     return {
       message:
@@ -354,19 +372,17 @@ export class AuthService {
       .sendWelcomeEmail(user.email, user.fullName)
       .catch(() => {});
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId: user.id,
       action: 'auth.email.verified',
       resource: `user:${user.id}`,
       req,
     });
 
-    this.webhookService
-      .dispatchEvent(WebhookEvent.USER_EMAIL_VERIFIED, {
-        userId: user.id,
-        email: user.email,
-      })
-      .catch(() => {});
+    this.dispatchWebhook(WebhookEvent.USER_EMAIL_VERIFIED, {
+      userId: user.id,
+      email: user.email,
+    });
 
     return { message: 'Email verified successfully. You can now log in.' };
   }
@@ -422,18 +438,16 @@ export class AuthService {
 
     if (!user) {
       await bcrypt.hash(dto.password, 10);
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: null,
         action: 'auth.login.failed',
         metadata: { email: normalizedEmail, reason: 'user_not_found' },
         req,
       });
-      this.webhookService
-        .dispatchEvent(WebhookEvent.USER_LOGIN_FAILED, {
-          email: normalizedEmail,
-          reason: 'user_not_found',
-        })
-        .catch(() => {});
+      this.dispatchWebhook(WebhookEvent.USER_LOGIN_FAILED, {
+        email: normalizedEmail,
+        reason: 'user_not_found',
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -448,7 +462,7 @@ export class AuthService {
           )?.code ?? '',
         )
         .catch(() => {});
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
@@ -459,7 +473,7 @@ export class AuthService {
     }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
@@ -470,7 +484,7 @@ export class AuthService {
     }
 
     if (!user.isActive && !user.scheduledDeletionAt) {
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
@@ -503,23 +517,21 @@ export class AuthService {
         this.emailService
           .sendAccountLockedEmail(user.email, user.fullName)
           .catch(() => {});
-        await this.auditLogService.log({
+        await this.logAudit({
           userId: user.id,
           action: 'auth.login.failed',
           resource: `user:${user.id}`,
           metadata: { reason: 'account_auto_locked' },
           req,
         });
-        this.webhookService
-          .dispatchEvent(WebhookEvent.USER_LOCKED, {
-            userId: user.id,
-            email: user.email,
-            reason: 'auto_locked_max_attempts',
-          })
-          .catch(() => {});
+        this.dispatchWebhook(WebhookEvent.USER_LOCKED, {
+          userId: user.id,
+          email: user.email,
+          reason: 'auto_locked_max_attempts',
+        });
         throw new UnauthorizedException('Invalid credentials');
       }
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: user.id,
         action: 'auth.login.failed',
         resource: `user:${user.id}`,
@@ -535,13 +547,15 @@ export class AuthService {
       lastLogin: new Date(),
     });
 
-    const stepUpResult = await this.checkAnomaliesAndStepUp(
-      user,
-      req,
-      dto.fingerprint,
-    );
-    if (stepUpResult) {
-      return stepUpResult;
+    if (!this.isFingerprintingDisabled) {
+      const stepUpResult = await this.checkAnomaliesAndStepUp(
+        user,
+        req,
+        dto.fingerprint,
+      );
+      if (stepUpResult) {
+        return stepUpResult;
+      }
     }
 
     if (user.mfaEnabled) {
@@ -564,19 +578,17 @@ export class AuthService {
       };
     }
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId: user.id,
       action: 'auth.login',
       resource: `user:${user.id}`,
       req,
     });
 
-    this.webhookService
-      .dispatchEvent(WebhookEvent.USER_LOGIN, {
-        userId: user.id,
-        email: user.email,
-      })
-      .catch(() => {});
+    this.dispatchWebhook(WebhookEvent.USER_LOGIN, {
+      userId: user.id,
+      email: user.email,
+    });
 
     return this.generateTokens(user, req);
   }
@@ -611,7 +623,7 @@ export class AuthService {
       failedAttempts: 0,
     });
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId: user.id,
       action: 'auth.mfa.verified',
       resource: `user:${user.id}`,
@@ -660,7 +672,7 @@ export class AuthService {
       failedAttempts: 0,
     });
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId: user.id,
       action: 'auth.mfa.verified',
       resource: `user:${user.id}`,
@@ -685,7 +697,7 @@ export class AuthService {
 
     await this.anomalyDetectionService.markStepUpCompleted(userId);
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId,
       action: 'auth.step_up.completed',
       resource: `user:${userId}`,
@@ -747,19 +759,17 @@ export class AuthService {
       .sendMfaEnabledEmail(user.email, user.fullName)
       .catch(() => {});
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId,
       action: 'auth.mfa.enabled',
       resource: `user:${userId}`,
       req,
     });
 
-    this.webhookService
-      .dispatchEvent(WebhookEvent.MFA_ENABLED, {
-        userId,
-        email: user.email,
-      })
-      .catch(() => {});
+    this.dispatchWebhook(WebhookEvent.MFA_ENABLED, {
+      userId,
+      email: user.email,
+    });
 
     return {
       message: 'MFA enabled successfully',
@@ -801,19 +811,17 @@ export class AuthService {
       mfaBackupCodes: null!,
     });
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId,
       action: 'auth.mfa.disabled',
       resource: `user:${userId}`,
       req,
     });
 
-    this.webhookService
-      .dispatchEvent(WebhookEvent.MFA_DISABLED, {
-        userId,
-        email: user.email,
-      })
-      .catch(() => {});
+    this.dispatchWebhook(WebhookEvent.MFA_DISABLED, {
+      userId,
+      email: user.email,
+    });
 
     return { message: 'MFA disabled successfully' };
   }
@@ -900,12 +908,14 @@ export class AuthService {
         .catch(() => {});
     }
 
-    const stepUpResult = await this.checkAnomaliesAndStepUp(user!, req);
-    if (stepUpResult) {
-      return stepUpResult;
+    if (!this.isFingerprintingDisabled) {
+      const stepUpResult = await this.checkAnomaliesAndStepUp(user!, req);
+      if (stepUpResult) {
+        return stepUpResult;
+      }
     }
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId: user!.id,
       action: 'auth.login.google',
       resource: `user:${user!.id}`,
@@ -972,7 +982,7 @@ export class AuthService {
         isRevoked: true,
       });
 
-      await this.auditLogService.log({
+      await this.logAudit({
         userId: refreshTokenEntity.userId,
         action: 'auth.refresh',
         resource: `user:${refreshTokenEntity.userId}`,
@@ -999,7 +1009,7 @@ export class AuthService {
       });
     }
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId: userId || tokenEntity?.userId || null,
       action: 'auth.logout',
       resource: userId ? `user:${userId}` : undefined,
@@ -1036,7 +1046,7 @@ export class AuthService {
 
     this.emailService.sendPasswordResetEmail(user.email, code).catch(() => {});
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId: user.id,
       action: 'auth.password.reset',
       resource: `user:${user.id}`,
@@ -1103,7 +1113,7 @@ export class AuthService {
 
     await this.refreshTokenRepository.delete({ userId: resetToken.userId });
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId: resetToken.userId,
       action: 'auth.password.reset',
       resource: `user:${resetToken.userId}`,
@@ -1111,11 +1121,9 @@ export class AuthService {
       req,
     });
 
-    this.webhookService
-      .dispatchEvent(WebhookEvent.USER_PASSWORD_RESET, {
-        userId: resetToken.userId,
-      })
-      .catch(() => {});
+    this.dispatchWebhook(WebhookEvent.USER_PASSWORD_RESET, {
+      userId: resetToken.userId,
+    });
 
     return { message: 'Password reset successfully' };
   }
@@ -1159,7 +1167,7 @@ export class AuthService {
 
     await this.refreshTokenRepository.update(sessionId, { isRevoked: true });
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId,
       action: 'auth.session.revoked',
       resource: `session:${sessionId}`,
@@ -1195,7 +1203,7 @@ export class AuthService {
       await this.refreshTokenRepository.update(toRevoke, { isRevoked: true });
     }
 
-    await this.auditLogService.log({
+    await this.logAudit({
       userId,
       action: 'auth.session.revoked_all',
       resource: `user:${userId}`,
