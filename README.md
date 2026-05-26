@@ -37,7 +37,7 @@ auth-system/
 │   ├── src/
 │   │   ├── common/   # Guards, decorators, filters, interceptors, validators, storage
 │   │   ├── config/   # App configuration service
-│   │   ├── entities/ # TypeORM entities
+│   │   ├── entities/ # TypeORM entities (12)
 │   │   ├── modules/  # Feature modules (auth, users, admin, email, cloudinary, audit, captcha, webhook, device-fingerprint)
 │   │   └── seed/     # Database seed scripts
 │   └── test/         # E2E tests
@@ -120,7 +120,7 @@ Sensitive auth endpoints override these defaults with stricter limits:
 | `POST /auth/verify-email` | 60s | 5 |
 | `POST /auth/resend-verification` | 60s | 3 |
 | `POST /auth/mfa/verify` | 60s | 10 |
-| `POST /auth/mfa/verify-backup` | 60s | 10 |
+| `POST /auth/mfa/verify-backup` | 15m | 3 |
 | `POST /auth/step-up/verify` | 60s | 5 |
 | `POST /auth/webauthn/login/*` | 60s | 10 |
 
@@ -343,7 +343,7 @@ Admins can configure webhooks to receive real-time HTTP notifications when authe
 
 ## API Documentation
 
-Swagger UI is available at `http://localhost:3000/api/docs` when running in development mode.
+Swagger UI is available at `http://localhost:3000/api/docs` when `ENABLE_SWAGGER=true` is set in your environment variables.
 
 ## Available Scripts
 
@@ -367,6 +367,8 @@ Swagger UI is available at `http://localhost:3000/api/docs` when running in deve
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build |
 | `npm run lint` | Lint with ESLint |
+| `npm run test` | Run tests |
+| `npm run test:watch` | Run tests in watch mode |
 
 ## License
 
