@@ -2,18 +2,16 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, Input, ErrorBanner } from '@/components/ui';
 import { useVerifyStepUp } from '@/hooks/useAuth';
-import { useAuthStore } from '@/stores/auth.store';
 
 export default function StepUpVerifyPage() {
   const navigate = useNavigate();
   const { mutate: verifyStepUp, isPending, error } = useVerifyStepUp();
   const [code, setCode] = useState('');
-  const stepUpToken = useAuthStore((s) => s.stepUpToken);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim()) return;
-    verifyStepUp({ ...(stepUpToken ? { stepUpToken } : {}), code: code.trim() });
+    verifyStepUp({ code: code.trim() });
   };
 
   return (

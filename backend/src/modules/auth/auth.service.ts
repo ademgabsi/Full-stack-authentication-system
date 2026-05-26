@@ -494,6 +494,17 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.passwordHash) {
+      await this.logAudit({
+        userId: user.id,
+        action: 'auth.login.failed',
+        resource: `user:${user.id}`,
+        metadata: { reason: 'no_password_set' },
+        req,
+      });
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
     const isPasswordValid = await bcrypt.compare(
       dto.password,
       user.passwordHash,
@@ -596,7 +607,7 @@ export class AuthService {
   async verifyMfa(dto: MfaVerifyDto, req?: Request) {
     let payload: any;
     try {
-      payload = this.jwtService.verify(dto.tempToken, {
+      payload = this.jwtService.verify(dto.tempToken!, {
         secret: this.configService.jwtSecret,
       });
     } catch {
@@ -638,7 +649,7 @@ export class AuthService {
   async verifyMfaBackupCode(dto: MfaBackupCodeVerifyDto, req?: Request) {
     let payload: any;
     try {
-      payload = this.jwtService.verify(dto.tempToken, {
+      payload = this.jwtService.verify(dto.tempToken!, {
         secret: this.configService.jwtSecret,
       });
     } catch {
@@ -687,7 +698,7 @@ export class AuthService {
 
   async verifyStepUp(dto: StepUpVerifyDto, req?: Request) {
     const { userId } = await this.stepUpChallengeService.verifyChallenge(
-      dto.stepUpToken,
+      dto.stepUpToken!,
       dto.code,
     );
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -784,6 +795,10 @@ export class AuthService {
     }
     if (!user.mfaEnabled) {
       throw new BadRequestException('MFA is not enabled');
+    }
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Invalid password');
     }
 
     const isPasswordValid = await bcrypt.compare(

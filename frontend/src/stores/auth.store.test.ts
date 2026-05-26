@@ -22,8 +22,6 @@ describe('useAuthStore', () => {
     expect(state.user).toBeNull();
     expect(state.isAuthenticated).toBe(false);
     expect(state.isAdmin).toBe(false);
-    expect(state.tempToken).toBeNull();
-    expect(state.stepUpToken).toBeNull();
   });
 
   it('should set access token and authentication state', () => {
@@ -83,8 +81,6 @@ describe('useAuthStore', () => {
     expect(state.accessToken).toBe(token);
     expect(state.user?.email).toBe('test@example.com');
     expect(state.isAuthenticated).toBe(true);
-    expect(state.tempToken).toBeNull();
-    expect(state.stepUpToken).toBeNull();
   });
 
   it('should handle logout', () => {
@@ -100,36 +96,6 @@ describe('useAuthStore', () => {
     expect(state.accessToken).toBeNull();
     expect(state.user).toBeNull();
     expect(state.isAuthenticated).toBe(false);
-    expect(state.tempToken).toBeNull();
-    expect(state.stepUpToken).toBeNull();
-  });
-
-  it('should handle tempToken', () => {
-    act(() => {
-      useAuthStore.getState().setTempToken('temp-token-abc');
-    });
-
-    expect(useAuthStore.getState().tempToken).toBe('temp-token-abc');
-
-    act(() => {
-      useAuthStore.getState().setTempToken(null);
-    });
-
-    expect(useAuthStore.getState().tempToken).toBeNull();
-  });
-
-  it('should handle stepUpToken', () => {
-    act(() => {
-      useAuthStore.getState().setStepUpToken('step-up-token');
-    });
-
-    expect(useAuthStore.getState().stepUpToken).toBe('step-up-token');
-
-    act(() => {
-      useAuthStore.getState().setStepUpToken(null);
-    });
-
-    expect(useAuthStore.getState().stepUpToken).toBeNull();
   });
 
   it('should handle setUser for regular user', () => {

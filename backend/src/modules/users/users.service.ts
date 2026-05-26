@@ -135,6 +135,10 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    if (!user.passwordHash) {
+      throw new BadRequestException('Cannot change password for OAuth accounts');
+    }
+
     const isPasswordValid = await bcrypt.compare(
       dto.currentPassword,
       user.passwordHash,

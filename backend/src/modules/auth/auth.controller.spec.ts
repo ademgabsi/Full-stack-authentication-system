@@ -105,7 +105,7 @@ describe('AuthController', () => {
       expect(result).not.toHaveProperty('refreshToken');
     });
 
-    it('should pass through MFA required response without setting cookie', async () => {
+    it('should set mfa_temp_token cookie for MFA required response', async () => {
       mockAuthService.login.mockResolvedValue({
         mfaRequired: true,
         tempToken: 'temp-jwt',
@@ -117,7 +117,11 @@ describe('AuthController', () => {
         mockRes,
       );
       expect(result).toHaveProperty('mfaRequired', true);
-      expect(mockRes.cookie).not.toHaveBeenCalled();
+      expect(mockRes.cookie).toHaveBeenCalledWith(
+        'mfa_temp_token',
+        'temp-jwt',
+        expect.objectContaining({ httpOnly: true, sameSite: 'strict' }),
+      );
     });
   });
 

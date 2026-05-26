@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router';
 import { Button, Input, ErrorBanner, Turnstile } from '@/components/ui';
 import { useLogin } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/auth.store';
-import type { LoginResponse, MfaRequiredResponse } from '@/types';
+import type { LoginResponse } from '@/types';
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -48,7 +48,6 @@ export default function AdminLoginPage() {
       {
         onSuccess: (response) => {
           if ('mfaRequired' in response && response.mfaRequired) {
-            useAuthStore.getState().setTempToken((response as MfaRequiredResponse).tempToken);
             navigate('/mfa/verify', { replace: true });
             return;
           }
