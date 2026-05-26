@@ -8,7 +8,7 @@ import { useLogin } from '@/hooks/useAuth';
 import { useWebAuthnLogin } from '@/hooks/useWebAuthn';
 import { useAuthStore } from '@/stores/auth.store';
 import { collectFingerprint } from '@/lib/fingerprint';
-import type { LoginResponse, MfaRequiredResponse, StepUpRequiredResponse } from '@/types';
+import type { LoginResponse } from '@/types';
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -51,16 +51,10 @@ export default function LoginPage() {
       {
         onSuccess: (response) => {
           if ('mfaRequired' in response && response.mfaRequired) {
-            useAuthStore
-              .getState()
-              .setTempToken((response as MfaRequiredResponse).tempToken);
             navigate('/mfa/verify', { replace: true });
             return;
           }
           if ('stepUpRequired' in response && response.stepUpRequired) {
-            useAuthStore
-              .getState()
-              .setStepUpToken((response as StepUpRequiredResponse).stepUpToken);
             navigate('/step-up/verify', { replace: true });
             return;
           }

@@ -27,14 +27,10 @@ function getRoleFromToken(token: string | null): UserRole | null {
 interface AuthState {
   accessToken: string | null;
   user: AuthUser | null;
-  tempToken: string | null;
-  stepUpToken: string | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
   setAccessToken: (accessToken: string) => void;
   setUser: (user: AuthUser) => void;
-  setTempToken: (tempToken: string | null) => void;
-  setStepUpToken: (stepUpToken: string | null) => void;
   login: (accessToken: string, user: AuthUser) => void;
   logout: () => void;
 }
@@ -44,8 +40,6 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       accessToken: null,
       user: null,
-      tempToken: null,
-      stepUpToken: null,
       isAuthenticated: false,
       isAdmin: false,
 
@@ -61,20 +55,10 @@ export const useAuthStore = create<AuthState>()(
         set({ user, isAuthenticated: true, isAdmin: user.role === ('admin' as UserRole) });
       },
 
-      setTempToken: (tempToken) => {
-        set({ tempToken });
-      },
-
-      setStepUpToken: (stepUpToken) => {
-        set({ stepUpToken });
-      },
-
       login: (accessToken, user) => {
         set({
           accessToken,
           user,
-          tempToken: null,
-          stepUpToken: null,
           isAuthenticated: true,
           isAdmin: user.role === ('admin' as UserRole),
         });
@@ -84,8 +68,6 @@ export const useAuthStore = create<AuthState>()(
         set({
           accessToken: null,
           user: null,
-          tempToken: null,
-          stepUpToken: null,
           isAuthenticated: false,
           isAdmin: false,
         });

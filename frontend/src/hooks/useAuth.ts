@@ -31,11 +31,10 @@ export function useLogin() {
 export function useVerifyMfa() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const tempToken = useAuthStore((s) => s.tempToken);
 
   return useMutation({
-    mutationFn: (data: Omit<MfaVerifyRequest, 'tempToken'>) =>
-      authApi.verifyMfa({ ...data, ...(tempToken ? { tempToken } : {}) }),
+    mutationFn: (data: MfaVerifyRequest) =>
+      authApi.verifyMfa(data),
     onSuccess: (response) => {
       const { accessToken, user } = response;
       login(accessToken, user);
@@ -52,18 +51,15 @@ export function useVerifyMfa() {
 export function useVerifyStepUp() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const clearStepUpToken = () => useAuthStore.setState({ stepUpToken: null });
 
   return useMutation({
     mutationFn: (data: StepUpVerifyRequest) => authApi.verifyStepUp(data),
     onSuccess: (response) => {
       const { accessToken, user } = response;
-      clearStepUpToken();
       login(accessToken, user);
       navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
     },
     onError: (error: AxiosError) => {
-      clearStepUpToken();
       if (error.response?.status === 401) {
         navigate('/login', { replace: true });
       }
@@ -74,11 +70,10 @@ export function useVerifyStepUp() {
 export function useVerifyMfaBackup() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
-  const tempToken = useAuthStore((s) => s.tempToken);
 
   return useMutation({
     mutationFn: (backupCode: string) =>
-      authApi.verifyMfaBackupCode({ ...(tempToken ? { tempToken } : {}), backupCode }),
+      authApi.verifyMfaBackupCode({ backupCode }),
     onSuccess: (response) => {
       const { accessToken, user } = response;
       login(accessToken, user);

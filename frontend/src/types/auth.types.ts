@@ -17,13 +17,11 @@ export interface LoginResponse {
 
 export interface MfaRequiredResponse {
   mfaRequired: true;
-  tempToken: string;
   message: string;
 }
 
 export interface StepUpRequiredResponse {
   stepUpRequired: true;
-  stepUpToken: string;
   message: string;
 }
 
@@ -60,17 +58,14 @@ export interface LoginRequest {
 }
 
 export interface StepUpVerifyRequest {
-  stepUpToken?: string;
   code: string;
 }
 
 export interface MfaVerifyRequest {
-  tempToken?: string;
   totpCode: string;
 }
 
 export interface MfaBackupCodeVerifyRequest {
-  tempToken?: string;
   backupCode: string;
 }
 

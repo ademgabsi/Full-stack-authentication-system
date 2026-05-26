@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { Link } from 'react-router';
 import { Button, Input, ErrorBanner } from '@/components/ui';
 import { useVerifyMfa, useVerifyMfaBackup } from '@/hooks/useAuth';
-import { useAuthStore } from '@/stores/auth.store';
 
 const schema = z.object({
   totpCode: z.string().length(6, 'Enter the 6-digit code'),
@@ -15,7 +14,6 @@ type FormData = z.infer<typeof schema>;
 
 export default function MfaVerifyPage() {
   const [useBackup, setUseBackup] = useState(false);
-  const tempToken = useAuthStore((s) => s.tempToken);
   const { mutate: verifyMfa, isPending: mfaPending, error: mfaError } = useVerifyMfa();
 
   const backupSchema = z.object({
@@ -58,7 +56,7 @@ export default function MfaVerifyPage() {
 
         {!useBackup ? (
           <form
-            onSubmit={handleSubmit((data) => verifyMfa({ totpCode: data.totpCode, ...(tempToken ? { tempToken } : {}) }))}
+            onSubmit={handleSubmit((data) => verifyMfa({ totpCode: data.totpCode }))}
             className="space-y-4"
           >
             <Input

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router';
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth.store';
@@ -13,15 +13,9 @@ export function AdminGuard() {
   const location = useLocation();
 
   const needsRefresh = isAuthenticated && !accessToken;
-  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (!needsRefresh) {
-      setRefreshing(false);
-      return;
-    }
-
-    setRefreshing(true);
+    if (!needsRefresh) return;
 
     let cancelled = false;
     const { login, setAccessToken, logout } = useAuthStore.getState();
@@ -36,12 +30,10 @@ export function AdminGuard() {
         } else {
           setAccessToken(data.accessToken);
         }
-        setRefreshing(false);
       })
       .catch(() => {
         if (cancelled) return;
         logout();
-        setRefreshing(false);
       });
 
     return () => {
@@ -49,7 +41,7 @@ export function AdminGuard() {
     };
   }, [needsRefresh]);
 
-  if (refreshing) {
+  if (needsRefresh) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spinner />

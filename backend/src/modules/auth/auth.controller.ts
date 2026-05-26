@@ -261,10 +261,7 @@ export class AuthController {
         HttpStatus.UNAUTHORIZED,
       );
     }
-    const result = await this.authService.verifyMfa(
-      { ...dto, tempToken },
-      req,
-    );
+    const result = await this.authService.verifyMfa({ ...dto, tempToken }, req);
     res.cookie(
       'refresh_token',
       result.refreshToken,

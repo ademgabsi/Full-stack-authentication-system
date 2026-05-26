@@ -607,7 +607,7 @@ export class AuthService {
   async verifyMfa(dto: MfaVerifyDto, req?: Request) {
     let payload: any;
     try {
-      payload = this.jwtService.verify(dto.tempToken, {
+      payload = this.jwtService.verify(dto.tempToken!, {
         secret: this.configService.jwtSecret,
       });
     } catch {
@@ -649,7 +649,7 @@ export class AuthService {
   async verifyMfaBackupCode(dto: MfaBackupCodeVerifyDto, req?: Request) {
     let payload: any;
     try {
-      payload = this.jwtService.verify(dto.tempToken, {
+      payload = this.jwtService.verify(dto.tempToken!, {
         secret: this.configService.jwtSecret,
       });
     } catch {
@@ -698,7 +698,7 @@ export class AuthService {
 
   async verifyStepUp(dto: StepUpVerifyDto, req?: Request) {
     const { userId } = await this.stepUpChallengeService.verifyChallenge(
-      dto.stepUpToken,
+      dto.stepUpToken!,
       dto.code,
     );
     const user = await this.userRepository.findOne({ where: { id: userId } });
