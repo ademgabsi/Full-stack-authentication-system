@@ -130,4 +130,6 @@ Unit tests use Jest with SQLite in-memory databases. E2E tests use `better-sqlit
 npm run test          # Unit tests
 npm run test:e2e      # E2E tests
 npm run test:cov      # Coverage report
+
+ROONEY-DEV
 ```
