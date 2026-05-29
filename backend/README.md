@@ -131,5 +131,5 @@ npm run test          # Unit tests
 npm run test:e2e      # E2E tests
 npm run test:cov      # Coverage report
 
-ROONEY-DEV
+ROONEY_DEV
 ```
